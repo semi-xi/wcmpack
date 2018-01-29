@@ -1,0 +1,46 @@
+{
+  "name": "wcapack",
+  "version": "1.0.0",
+  "main": "./libs/index.js",
+  "license": "MIT",
+  "bin": "./bin/wcapack",
+  "lint-staged": {
+    "*.js": [
+      "npm run lint",
+      "git add"
+    ]
+  },
+  "scripts": {
+    "eslint": "eslint --config .eslintrc.js --ext .js --fix './src/**/*.js'",
+    "lint": "npm run eslint",
+    "precommit": "lint-staged",
+    "develop": "babel ./src --out-dir ./libs --watch",
+    "product": "babel ./src --out-dir ./libs",
+    "start": "npm run develop"
+  },
+  "dependencies": {
+    "async": "^2.6.0",
+    "babel-core": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "chokidar": "^2.0.0",
+    "colors": "^1.1.2",
+    "columnify": "^1.5.4",
+    "fs-extra": "^5.0.0",
+    "glob": "^7.1.2",
+    "lodash": "^4.17.4",
+    "node-sass": "^4.7.2",
+    "strip-comments": "^0.4.4"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-eslint": "^8.2.1",
+    "eslint": "^4.14.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "extract-text-webpack-plugin": "^3.0.2",
+    "husky": "^0.14.3"
+  }
+}
