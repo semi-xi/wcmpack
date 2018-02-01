@@ -29,7 +29,8 @@
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
     "node-sass": "^4.7.2",
-    "strip-comments": "^0.4.4"
+    "strip-comments": "^0.4.4",
+    "uglify-js": "^3.3.9"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

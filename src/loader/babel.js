@@ -5,7 +5,7 @@ import isFunction from 'lodash/isFunction'
 import { transform } from 'babel-core'
 import { rootDir } from '../share/configuration'
 
-export default function transformBabel (code, options = {}, callback) {
+export default function transformBabel (source, options = {}, callback) {
   if (!isFunction(callback)) {
     throw new TypeError('Callback is not a function or not be provided')
   }
@@ -17,9 +17,11 @@ export default function transformBabel (code, options = {}, callback) {
   }
 
   try {
-    result = transform(code, options)
-    callback(null, result)
+    result = transform(source, options)
   } catch (error) {
     callback(error)
+    return
   }
+
+  callback(null, result.code)
 }

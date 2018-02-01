@@ -5,9 +5,25 @@ import filter from 'lodash/filter'
 import indexOf from 'lodash/indexOf'
 import isFunction from 'lodash/isFunction'
 import parallel from 'async/parallel'
+import waterfall from 'async/waterfall'
 import { resolve as relativeResolve } from '../share/requireRelative'
 import { resolveDependencies } from '../share/resolveDependencies'
 import { rootDir, srcDir, distDir, nodeModuleName } from '../share/configuration'
+
+const usePlugins = function (source, plugins, callback) {
+  if (!isFunction(callback)) {
+    throw new TypeError('Callback is not a function or not be provided')
+  }
+
+  let tasks = map(plugins, (plugin) => (source, callback) => {
+    let transform = require(plugin.use)
+    transform = transform.default || transform
+    transform(source, plugin.options || {}, callback)
+  })
+
+  tasks.unshift((callback) => callback(null, source))
+  waterfall(tasks, callback)
+}
 
 export const transform = function (file, options = {}, callback, __existsFiles__ = [], __relationship__ = []) {
   if (arguments.length < 3) {
@@ -36,21 +52,22 @@ export const transform = function (file, options = {}, callback, __existsFiles__
       return
     }
 
-    let babel = require('../loader/babel')
-    let transformBabel = babel.default || babel
+    source = source.toString('')
 
-    transformBabel(source, options.options || {}, (error, result) => {
+    let plugins = options.plugins || []
+    let transformPlugins = filter(plugins, (plugin) => !plugin.enforce)
+    usePlugins(source, transformPlugins, (error, source) => {
       if (error) {
         callback(error)
         return
       }
 
-      let { code } = result
       let relativeTo = path.dirname(file)
-      let dependencies = resolveDependencies(code, file, relativeTo)
+      let dependencies = resolveDependencies(source, file, relativeTo)
       __relationship__.push(...dependencies)
 
       let writeTasks = map(dependencies, ({ dependency }) => (callback) => transform(dependency, options, callback, __existsFiles__))
+
       let relativePath = file.search(srcDir) !== -1
         ? path.dirname(file).replace(srcDir, '')
         : /[\\/]node_modules[\\/]/.test(file)
@@ -67,12 +84,32 @@ export const transform = function (file, options = {}, callback, __existsFiles__
         }
 
         relativePath = relativePath.replace('node_modules', nodeModuleName)
-        code = code.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
+        source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
       })
 
       writeTasks.push((callback) => {
-        fs.ensureDirSync(directory)
-        fs.writeFile(destination, code, (error) => error ? callback(error) : callback(null, { assets: destination, size: code.length }))
+        let transformPlugins = filter(plugins, (plugin) => plugin.enforce === 'after')
+        usePlugins(source, transformPlugins, (error, source) => {
+          if (error) {
+            callback(error)
+            return
+          }
+
+          fs.ensureDirSync(directory)
+          fs.writeFile(destination, source, (error) => {
+            if (error) {
+              callback(error)
+              return
+            }
+
+            let result = {
+              assets: destination,
+              size: source.length
+            }
+
+            callback(null, result)
+          })
+        })
       })
 
       parallel(writeTasks, callback)

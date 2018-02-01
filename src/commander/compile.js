@@ -1,3 +1,4 @@
+import path from 'path'
 import glob from 'glob'
 import colors from 'colors'
 import program from 'commander'
@@ -31,7 +32,15 @@ const finder = function (pattern, options = {}, callback) {
     absolute: true
   })
 
-  glob(pattern, options, callback)
+  glob(pattern, options, (error, files) => {
+    if (error) {
+      callback(error)
+      return
+    }
+    
+    files = filter(files, (file) => path.basename(file).charAt(0) !== '_')
+    callback(null, files)
+  })
 }
 
 const compileJS = function (pattern, options = {}, callback, __existsFiles__ = [], __relationship__ = []) {
@@ -191,14 +200,29 @@ const printStats = function (stats, watching = false) {
 program
   .command('development')
   .description('Build WeChat Mini App in development environment')
+  .option('-c, --config', 'Set configuration file')
   .option('-w, --watch', 'Watch the file changed, auto compile')
   .action(function (options) {
     let handleTransform = function (error, stats) {
       error ? caughtException(error) : printStats(stats, options.watch)
     }
 
-    transform({}, handleTransform)
-    options.watch && watchTransform({}, handleTransform)
+    const plugins = [
+      {
+        use: require.resolve('../loader/babel')
+      },
+      {
+        enforce: 'after',
+        use: require.resolve('../loader/define'),
+        options: {
+          'process.env': {}
+        }
+      }
+    ]
+
+    let params = { js: { plugins } }
+    transform(params, handleTransform)
+    options.watch && watchTransform(params, handleTransform)
   })
 
 program
