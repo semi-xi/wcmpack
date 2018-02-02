@@ -2,13 +2,16 @@ import assign from 'lodash/assign'
 import isFunction from 'lodash/isFunction'
 import { render } from 'node-sass'
 
-export default function transform (code, options = {}, callback) {
+export default function SassPlugin (assets, options = {}, callback) {
   if (!isFunction(callback)) {
     throw new TypeError('Callback is not a function or not provided')
   }
 
+  let { file, source } = assets
+
   options = assign({
-    data: code.toString(),
+    file,
+    data: source,
     outputStyle: 'compressed',
     sourceComments: false,
     sourceMap: false
@@ -20,7 +23,7 @@ export default function transform (code, options = {}, callback) {
       return
     }
 
-    let { css: code, map } = result
-    callback(null, { code, map })
+    let { css: code } = result
+    callback(null, code)
   })
 }

@@ -3,27 +3,13 @@ import path from 'path'
 import map from 'lodash/map'
 import filter from 'lodash/filter'
 import indexOf from 'lodash/indexOf'
+import forEach from 'lodash/forEach'
 import isFunction from 'lodash/isFunction'
 import parallel from 'async/parallel'
-import waterfall from 'async/waterfall'
 import { resolve as relativeResolve } from '../share/requireRelative'
 import { resolveDependencies } from '../share/resolveDependencies'
+import { usePlugins } from '../share/usePlugins'
 import { rootDir, srcDir, distDir, nodeModuleName } from '../share/configuration'
-
-const usePlugins = function (source, plugins, callback) {
-  if (!isFunction(callback)) {
-    throw new TypeError('Callback is not a function or not be provided')
-  }
-
-  let tasks = map(plugins, (plugin) => (source, callback) => {
-    let transform = require(plugin.use)
-    transform = transform.default || transform
-    transform(source, plugin.options || {}, callback)
-  })
-
-  tasks.unshift((callback) => callback(null, source))
-  waterfall(tasks, callback)
-}
 
 export const transform = function (file, options = {}, callback, __existsFiles__ = [], __relationship__ = []) {
   if (arguments.length < 3) {
@@ -52,11 +38,20 @@ export const transform = function (file, options = {}, callback, __existsFiles__
       return
     }
 
-    source = source.toString('')
-
     let plugins = options.plugins || []
-    let transformPlugins = filter(plugins, (plugin) => !plugin.enforce)
-    usePlugins(source, transformPlugins, (error, source) => {
+    let transformPlugins = []
+    let afterTransformPlugins = []
+
+    forEach(plugins, function (plugin) {
+      if (plugin.enforce === 'after') {
+        afterTransformPlugins.push(plugin)
+        return
+      }
+
+      transformPlugins.push(plugin)
+    })
+
+    usePlugins({ file, source }, transformPlugins, (error, source) => {
       if (error) {
         callback(error)
         return
@@ -88,8 +83,7 @@ export const transform = function (file, options = {}, callback, __existsFiles__
       })
 
       writeTasks.push((callback) => {
-        let transformPlugins = filter(plugins, (plugin) => plugin.enforce === 'after')
-        usePlugins(source, transformPlugins, (error, source) => {
+        usePlugins({ file, source }, afterTransformPlugins, (error, source) => {
           if (error) {
             callback(error)
             return
@@ -102,12 +96,12 @@ export const transform = function (file, options = {}, callback, __existsFiles__
               return
             }
 
-            let result = {
+            let stats = {
               assets: destination,
               size: source.length
             }
 
-            callback(null, result)
+            callback(null, stats)
           })
         })
       })

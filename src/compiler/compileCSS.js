@@ -1,7 +1,9 @@
 import fs from 'fs-extra'
 import path from 'path'
 import isFunction from 'lodash/isFunction'
-import defaults from 'lodash/defaults'
+import forEach from 'lodash/forEach'
+import waterfall from 'async/waterfall'
+import { usePlugins } from '../share/usePlugins'
 import { srcDir, distDir } from '../share/configuration'
 
 export const transform = function (file, options = {}, callback) {
@@ -19,30 +21,50 @@ export const transform = function (file, options = {}, callback) {
       return
     }
 
-    let sass = require('../loader/sass')
-    let transformSASS = sass.default || sass
+    source = source.toString()
 
-    let sassOptions = defaults({}, options.options, {
-      file,
-      outputStyle: 'compressed',
-      sourceComments: false,
-      sourceMap: false
+    let plugins = options.plugins || []
+    let transformPlugins = []
+    let afterTransformPlugins = []
+
+    forEach(plugins, function (plugin) {
+      if (plugin.enforce === 'after') {
+        afterTransformPlugins.push(plugin)
+        return
+      }
+
+      transformPlugins.push(plugin)
     })
 
-    transformSASS(source, sassOptions, function (error, result) {
+    waterfall([
+      usePlugins.bind(null, { file, source }, transformPlugins),
+      (source, callback) => usePlugins({ file, source }, afterTransformPlugins, callback)
+    ],
+    (error, code) => {
       if (error) {
         callback(error)
         return
       }
 
-      let { code } = result
       let relativePath = path.dirname(file).replace(srcDir, '')
       let filename = path.basename(file).replace(path.extname(file), '.wxss')
       let destination = path.join(distDir, relativePath, filename)
       let directory = path.dirname(destination)
 
       fs.ensureDirSync(directory)
-      fs.writeFile(destination, code, (error) => error ? callback(error) : callback(null, { assets: destination, size: code.length }))
+      fs.writeFile(destination, code, (error) => {
+        if (error) {
+          callback(error)
+          return
+        }
+
+        let stats = {
+          assets: destination,
+          size: code.length
+        }
+
+        callback(null, stats)
+      })
     })
   })
 }

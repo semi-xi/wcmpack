@@ -1,3 +1,4 @@
+import fs from 'fs-extra'
 import path from 'path'
 import glob from 'glob'
 import colors from 'colors'
@@ -37,7 +38,7 @@ const finder = function (pattern, options = {}, callback) {
       callback(error)
       return
     }
-    
+
     files = filter(files, (file) => path.basename(file).charAt(0) !== '_')
     callback(null, files)
   })
@@ -110,6 +111,11 @@ const copyAssets = function (pattern, options = {}, callback) {
   })
 }
 
+const cleanup = function (callback) {
+  fs.removeSync(distDir)
+  trace(colors.white.bold(`Clean up ${distDir}`))
+}
+
 export const transform = function (options = {}, callback) {
   if (!isFunction(callback)) {
     throw new TypeError('Callback is not a function or not provided')
@@ -117,10 +123,16 @@ export const transform = function (options = {}, callback) {
 
   let startTime = Date.now()
 
+  let jsOptions = options.js || {}
+  let cssOptions = options.css || {}
+  let assetsOptions = options.assets || {}
+
+  cleanup()
+
   parallel([
-    compileJS.bind(null, null, options.js),
-    compileCSS.bind(null, null, options.css),
-    copyAssets.bind(null, null, options.assets)
+    compileJS.bind(null, jsOptions.test, jsOptions),
+    compileCSS.bind(null, cssOptions.test, cssOptions),
+    copyAssets.bind(null, assetsOptions.test, assetsOptions)
   ],
   (error, stats) => {
     if (error) {
@@ -207,27 +219,22 @@ program
       error ? caughtException(error) : printStats(stats, options.watch)
     }
 
-    const plugins = [
-      {
-        use: require.resolve('../loader/babel')
-      },
-      {
-        enforce: 'after',
-        use: require.resolve('../loader/define'),
-        options: {
-          'process.env': {}
-        }
-      }
-    ]
+    let configFile = options.config ? options.config : '../constants/development.config'
+    let transformOptions = require(configFile)
+    transformOptions = transformOptions.default || transformOptions
 
-    let params = { js: { plugins } }
-    transform(params, handleTransform)
-    options.watch && watchTransform(params, handleTransform)
+    transform(transformOptions, handleTransform)
+    options.watch && watchTransform(transformOptions, handleTransform)
   })
 
 program
   .command('production')
   .description('Build WeChat Mini App in production environment')
+  .option('-c, --config', 'Set configuration file')
   .action(function (options) {
-    transform({}, (error, stats) => error ? caughtException(error) : printStats(stats))
+    let configFile = options.config ? options.config : '../constants/production.config'
+    let transformOptions = require(configFile)
+    transformOptions = transformOptions.default || transformOptions
+
+    transform(transformOptions, (error, stats) => error ? caughtException(error) : printStats(stats))
   })
