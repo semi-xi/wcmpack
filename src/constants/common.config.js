@@ -9,11 +9,9 @@ export default {
         enforce: 'after',
         use: require.resolve('../plugins/define'),
         options: {
-          env: [
-            {
-              NODE_ENV: 'production'
-            }
-          ]
+          env: {
+            NODE_ENV: 'production'
+          }
         }
       }
     ]
