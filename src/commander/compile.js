@@ -1,156 +1,78 @@
-import fs from 'fs-extra'
-import path from 'path'
 import glob from 'glob'
 import colors from 'colors'
 import program from 'commander'
 import chokidar from 'chokidar'
+import waterfall from 'async/waterfall'
 import parallel from 'async/parallel'
 import map from 'lodash/map'
-import filter from 'lodash/filter'
-import defaults from 'lodash/defaults'
-import isFunction from 'lodash/isFunction'
-import isEmpty from 'lodash/isEmpty'
+import isArray from 'lodash/isArray'
 import flattenDeep from 'lodash/flattenDeep'
-import { transform as transformJS } from '../compiler/compileJS'
-import { transform as transformCSS } from '../compiler/compileCSS'
-import { copy as copyFile } from '../compiler/copyAssets'
+import { parse } from '../parser'
 import { trace, formatStats } from '../share/printer'
-import { srcDir, distDir } from '../share/configuration'
+import { srcDir, distDir, rootDir } from '../share/configuration'
 import Package from '../../package.json'
 
-const finder = function (pattern, options = {}, callback) {
-  if (arguments.length < 3) {
-    return finder(pattern, {}, options)
-  }
-
-  if (!isFunction(callback)) {
+export const transform = function (options = {}, callback) {
+  if (typeof callback !== 'function') {
     throw new TypeError('Callback is not a function or not provided')
   }
 
-  options = defaults({}, options, {
-    cwd: srcDir,
+  let basePath = options.cwd || rootDir
+  let patterns = map(options.rules, 'test')
+
+  let finders = patterns.map((pattern) => (callback) => glob(pattern, {
+    cwd: basePath,
+    root: '/',
     realpath: true,
     absolute: true
-  })
+  }, callback))
 
-  glob(pattern, options, (error, files) => {
-    if (error) {
-      callback(error)
-      return
-    }
-
-    files = filter(files, (file) => path.basename(file).charAt(0) !== '_')
-    callback(null, files)
-  })
-}
-
-const compileJS = function (pattern, options = {}, callback, __existsFiles__ = [], __relationship__ = []) {
-  if (!isFunction(callback)) {
-    throw new TypeError('Callback is not a function or not provided')
+  let chunkTasks = []
+  let addChunks = function (tasks) {
+    tasks = isArray(tasks) ? tasks : [tasks]
+    chunkTasks.push(...tasks)
   }
 
-  finder(pattern || './**/*.js', function (error, files) {
+  let genParseFileTasks = function (files, options) {
+    return files.map((file) => (callback) => parse.call({ addChunks }, file, options, callback))
+  }
+
+  let excParseFileTasks = function (files, options, callback) {
+    let tasks = genParseFileTasks(files, options)
+    parallel(tasks, callback)
+  }
+
+  let genParseChunkTasks = function (chunk) {
+    return chunk.map((files, index) => (callback) => excParseFileTasks(files, options.rules[index], callback))
+  }
+
+  let excParseChunkTasks = function (chunk, callback) {
+    let tasks = genParseChunkTasks(chunk, options)
+    parallel(tasks, callback)
+  }
+
+  waterfall([parallel.bind(null, finders), excParseChunkTasks], function (error, stats) {
     if (error) {
       callback(error)
       return
     }
 
-    let compileTasks = map(files, (file) => (callback) => transformJS(file, options, callback, __existsFiles__, __relationship__))
-    parallel(compileTasks, (error, stats) => {
-      stats = flattenDeep(stats)
-      stats = filter(stats, (state) => !isEmpty(state))
-
-      let conflict = {}
-      for (let i = __relationship__.length; i--;) {
-        for (let j = __relationship__.length; j--;) {
-          if (__relationship__[i].file === __relationship__[j].dependency && __relationship__[j].file === __relationship__[i].dependency) {
-            conflict[__relationship__[i].file] = __relationship__[j].file
-          }
-        }
+    parallel(chunkTasks, (error, otherStats) => {
+      if (error) {
+        callback(error)
+        return
       }
 
-      stats.conflict = conflict
-      error ? callback(error) : callback(null, stats)
-    })
-  })
-}
-
-const compileCSS = function (pattern, options = {}, callback) {
-  if (!isFunction(callback)) {
-    throw new TypeError('Callback is not a function or not provided')
-  }
-
-  finder(pattern || './**/*.scss', function (error, files) {
-    if (error) {
-      callback(error)
-      return
-    }
-
-    let compileTasks = map(files, (file) => transformCSS.bind(null, file, options))
-    parallel(compileTasks, (error, stats) => {
+      stats = stats.concat(otherStats)
+      stats = stats.filter((stats) => stats)
       stats = flattenDeep(stats)
-      stats = filter(stats, (state) => !isEmpty(state))
-      error ? callback(error) : callback(null, stats)
+      callback(null, stats)
     })
-  })
-}
-
-const copyAssets = function (pattern, options = {}, callback) {
-  if (!isFunction(callback)) {
-    throw new TypeError('Callback is not a function or not provided')
-  }
-
-  finder(pattern || './**/*.{json,wxml}', function (error, files) {
-    if (error) {
-      callback(error)
-      return
-    }
-
-    let copyTasks = map(files, (file) => (callback) => copyFile(file, options, callback))
-    parallel(copyTasks, callback)
-  })
-}
-
-const cleanup = function (callback) {
-  fs.removeSync(distDir)
-  trace(colors.white.bold(`Clean up ${distDir}`))
-}
-
-export const transform = function (options = {}, callback) {
-  if (!isFunction(callback)) {
-    throw new TypeError('Callback is not a function or not provided')
-  }
-
-  let startTime = Date.now()
-
-  let jsOptions = options.js || {}
-  let cssOptions = options.css || {}
-  let assetsOptions = options.assets || {}
-
-  cleanup()
-
-  parallel([
-    compileJS.bind(null, jsOptions.test, jsOptions),
-    compileCSS.bind(null, cssOptions.test, cssOptions),
-    copyAssets.bind(null, assetsOptions.test, assetsOptions)
-  ],
-  (error, stats) => {
-    if (error) {
-      callback(error)
-      return
-    }
-
-    let [jsStats, cssStats, cpyStats] = stats
-    stats = [].concat(jsStats, cssStats, cpyStats)
-    stats.conflict = jsStats.conflict || {}
-    stats.spendTime = Date.now() - startTime
-
-    callback(null, stats)
   })
 }
 
 export const watchTransform = function (options = {}, callback) {
-  if (!isFunction(callback)) {
+  if (typeof callback !== 'function') {
     throw new TypeError('Callback is not a function or not provided')
   }
 
@@ -182,7 +104,7 @@ const caughtException = function (error) {
 }
 
 const printStats = function (stats, watching = false) {
-  let statsFormatter = map(stats, ({ assets, size }) => {
+  let statsFormatter = stats.map(({ assets, size }) => {
     assets = assets.replace(distDir, '')
     return { assets, size }
   })
@@ -238,3 +160,9 @@ program
 
     transform(transformOptions, (error, stats) => error ? caughtException(error) : printStats(stats))
   })
+
+// transform({
+
+// }, function () {
+
+// })

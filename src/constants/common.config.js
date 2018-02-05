@@ -1,30 +1,38 @@
 export default {
-  js: {
-    test: './**/*.js',
-    plugins: [
-      {
-        use: require.resolve('../plugins/babel')
-      },
-      {
-        enforce: 'after',
-        use: require.resolve('../plugins/define'),
-        options: {
-          env: {
-            NODE_ENV: 'production'
+  rules: [
+    {
+      test: './src/**/*.js',
+      extname: '.js',
+      loaders: [
+        {
+          use: require('../loaders/babel'),
+          options: {}
+        },
+        {
+          use: require('../loaders/envify'),
+          options: {
+            env: {
+              NODE_ENV: 'production'
+            }
           }
         }
-      }
-    ]
-  },
-  css: {
-    test: './**/*.scss',
-    plugins: [
-      {
-        use: require.resolve('../plugins/sass')
-      }
-    ]
-  },
-  assets: {
-    test: './**/*.{json,wxml}'
-  }
+      ],
+      plugins: [
+        {
+          use: require('../plugins/linkage'),
+          options: {}
+        }
+      ]
+    },
+    {
+      test: './src/**/*.scss',
+      extname: '.css',
+      loaders: [
+        {
+          use: require('../loaders/sass'),
+          options: {}
+        }
+      ]
+    }
+  ]
 }
