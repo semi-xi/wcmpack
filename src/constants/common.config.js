@@ -1,15 +1,15 @@
 export default {
   rules: [
     {
-      test: './src/**/*.js',
+      test: /\.js$/,
       extname: '.js',
       loaders: [
         {
-          use: require('../loaders/babel'),
+          use: require.resolve('../loaders/babel'),
           options: {}
         },
         {
-          use: require('../loaders/envify'),
+          use: require.resolve('../loaders/envify'),
           options: {
             env: {
               NODE_ENV: 'production'
@@ -19,20 +19,23 @@ export default {
       ],
       plugins: [
         {
-          use: require('../plugins/linkage'),
+          use: require.resolve('../plugins/linkage'),
           options: {}
         }
       ]
     },
     {
-      test: './src/**/*.scss',
-      extname: '.css',
+      test: /\.scss$/,
+      extname: '.wxss',
       loaders: [
         {
-          use: require('../loaders/sass'),
+          use: require.resolve('../loaders/sass'),
           options: {}
         }
       ]
+    },
+    {
+      test: /\.(json|wxml)$/
     }
   ]
 }
