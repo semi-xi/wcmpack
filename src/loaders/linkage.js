@@ -4,7 +4,7 @@ import { findForMatch } from '../share/finder'
 import { resolveDependencies } from '../share/resolveDependencies'
 import { nodeModuleName } from '../share/configuration'
 
-export default function ReuqireTransform (source, options, { compiler, argv }) {
+export default function ReuqireTransform (source, options, { compiler, parser, argv }) {
   let { file, options: parseOptions } = argv
   let { root: rootDir, src: srcDir, dist: distDir } = argv.options
 
@@ -31,10 +31,9 @@ export default function ReuqireTransform (source, options, { compiler, argv }) {
     let files = findForMatch(dependency, parseOptions.rules)
     forEach(files, (rules, file) => {
       let task = compiler.parse(file, rules[0], parseOptions)
-      compiler.addTask(task)
+      parser.addTask(task)
     })
   })
 
-  console.log('ReuqireTransform')
   return source
 }

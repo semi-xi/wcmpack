@@ -1,18 +1,15 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { Transform } from 'stream'
-import { promisify } from 'util'
 import chokidar from 'chokidar'
+import map from 'lodash/map'
 import forEach from 'lodash/forEach'
 import flattenDeep from 'lodash/flattenDeep'
-import waterfall from 'async/waterfall'
 import { findForMatch } from './share/finder'
 import { rootDir, distDir, srcDir, nodeModuleName } from './share/configuration'
 
-const promisifiedWaterfall = promisify(waterfall)
-
 class LoaderTransform extends Transform {
-  constructor (loaders, file, rule, options, compiler) {
+  constructor (loaders, file, rule, options, parser, compiler) {
     super()
 
     this._source = ''
@@ -20,6 +17,7 @@ class LoaderTransform extends Transform {
     this._file = file
     this._rule = rule
     this._parseOptions = options
+    this._parser = parser
     this._compiler = compiler
   }
 
@@ -34,9 +32,9 @@ class LoaderTransform extends Transform {
       Loader = require(Loader)
       Loader = Loader.default || Loader
 
-      let compiler = this._compiler
+      let { _compiler: compiler, _parser: parser } = this
       let argv = { file: this._file, rule: this._rule, options: this._parseOptions }
-      source = Loader(source, options, { compiler, argv })
+      source = Loader(source, options, { compiler, parser, argv })
     })
 
     this.push(source)
@@ -46,16 +44,7 @@ class LoaderTransform extends Transform {
 
 export class Compiler {
   constructor () {
-    this.tasks = []
     this.assets = []
-  }
-
-  addTask (task) {
-    if (!(task instanceof Promise)) {
-      throw new TypeError('Task is not a Promise or not be provided')
-    }
-
-    this.tasks.push(task)
   }
 
   existsAssets (file) {
@@ -73,15 +62,8 @@ export class Compiler {
 
     let startTime = Date.now()
     let files = findForMatch(directory, options.rules)
-
-    forEach(files, (rules, file) => {
-      let task = this.parse(file, rules[0], options)
-      this.addTask(task)
-    })
-
-    return Promise.all(this.tasks).then((result) => {
-      console.log(this.tasks)
-
+    let tasks = map(files, (rules, file) => this.parse(file, rules[0], options))
+    return Promise.all(tasks).then((result) => {
       let stats = flattenDeep(result).filter((result) => result)
       stats.spendTime = Date.now() - startTime
       return stats
@@ -120,6 +102,10 @@ export class Compiler {
   }
 
   parse (file, rule, options = {}) {
+    if (path.basename(file).charAt(0) === '_') {
+      return Promise.resolve(null)
+    }
+
     if (this.existsAssets(file)) {
       return Promise.resolve(null)
     }
@@ -128,7 +114,6 @@ export class Compiler {
 
     let { src: srcDir, root: rootDir, dist: distDir } = options
     let loaders = Array.isArray(rule.loaders) ? rule.loaders : []
-    // let plugins = Array.isArray(rule.plugins) ? rule.plugins : []
 
     let relativePath = file.search(srcDir) !== -1
       ? path.dirname(file).replace(srcDir, '')
@@ -142,12 +127,17 @@ export class Compiler {
       filename = filename.replace(extname, rule.extname)
     }
 
-    let destination = path.join(distDir, relativePath, filename)
-    let directory = path.dirname(destination)
+    let parser = {
+      _tasks: [],
+      addTask (task) {
+        this._tasks.push(task)
+      }
+    }
 
+    let destination = path.join(distDir, relativePath, filename)
     let readStream = fs.createReadStream(file)
-    // let writeStream = fs.createWriteStream(destination)
-    let transStream = new LoaderTransform(loaders, file, rule, options, this)
+    let writeStream = fs.createWriteStream(destination)
+    let transStream = new LoaderTransform(loaders, file, rule, options, parser, this)
     readStream = readStream.pipe(transStream)
 
     return new Promise((resolve, reject) => {
@@ -158,17 +148,17 @@ export class Compiler {
 
         let stats = {
           assets: destination,
-          size: source.size
+          size: source.byteLength
         }
 
-        let queue = [
-          fs.ensureDir.bind(fs, directory),
-          fs.writeFile.bind(fs, destination, source),
-          (callback) => callback(null, stats)
-        ]
-
-        promisifiedWaterfall(queue).then(resolve).catch(reject)
+        Promise
+          .all(parser._tasks)
+          .then((allStats) => resolve(allStats.concat(stats)))
+          .catch(reject)
       })
+
+      fs.ensureFileSync(destination)
+      readStream.pipe(writeStream)
     })
   }
 }
