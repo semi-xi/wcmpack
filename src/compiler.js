@@ -80,35 +80,38 @@ export class Compiler {
 
     this.addAssets(file)
 
-    let { src: srcDir, root: rootDir, dist: distDir } = options
-    let loaders = Array.isArray(rule.loaders) ? rule.loaders : []
-
-    let relativePath = file.search(srcDir) !== -1
-      ? path.dirname(file).replace(srcDir, '')
-      : /[\\/]node_modules[\\/]/.test(file)
-        ? path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
-        : path.dirname(file).replace(rootDir, '')
-
-    let filename = path.basename(file)
-    if (rule.extname) {
-      let extname = path.extname(file)
-      filename = filename.replace(extname, rule.extname)
-    }
-
-    let parser = {
-      _tasks: [],
-      addTask (task) {
-        this._tasks.push(task)
-      }
-    }
-
-    let destination = path.join(distDir, relativePath, filename)
-    let readStream = fs.createReadStream(file)
-    let writeStream = fs.createWriteStream(destination)
-    let transStream = new LoaderTransform(loaders, file, rule, options, parser, this)
-    readStream = readStream.pipe(transStream)
-
     return new Promise((resolve, reject) => {
+      let { src: srcDir, root: rootDir, dist: distDir } = options
+      let loaders = Array.isArray(rule.loaders) ? rule.loaders : []
+
+      let relativePath = file.search(srcDir) !== -1
+        ? path.dirname(file).replace(srcDir, '')
+        : /[\\/]node_modules[\\/]/.test(file)
+          ? path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
+          : path.dirname(file).replace(rootDir, '')
+
+      let filename = path.basename(file)
+      if (rule.extname) {
+        let extname = path.extname(file)
+        filename = filename.replace(extname, rule.extname)
+      }
+
+      let parser = {
+        _tasks: [],
+        addTask (task) {
+          this._tasks.push(task)
+        }
+      }
+
+      let destination = path.join(distDir, relativePath, filename)
+      fs.ensureFileSync(destination)
+
+      let readStream = fs.createReadStream(file)
+      let writeStream = fs.createWriteStream(destination)
+      let transStream = new LoaderTransform(loaders, file, rule, options, parser, this)
+
+      readStream = readStream.pipe(transStream)
+
       let buffers = []
       readStream.on('data', (buffer) => buffers.push(buffer))
       readStream.on('end', function () {
@@ -125,7 +128,6 @@ export class Compiler {
           .catch(reject)
       })
 
-      fs.ensureFileSync(destination)
       readStream.pipe(writeStream)
     })
   }

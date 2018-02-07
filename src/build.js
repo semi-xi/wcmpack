@@ -11,9 +11,8 @@ export default function init (directory, options = {}) {
     let relativePath = path.dirname(file).replace(options.src, '')
     let filename = path.basename(file)
     let destination = path.join(options.dist, relativePath, filename)
-    let directory = path.dirname(destination)
 
-    fs.ensureDirSync(directory)
+    fs.ensureFileSync(destination)
 
     let readStream = fs.createReadStream(file)
     let writeStream = fs.createWriteStream(destination)
@@ -45,8 +44,8 @@ export const copyAssets = function (files, options) {
     let relativePath = path.dirname(file).replace(options.src, '')
     let filename = path.basename(file)
     let destination = path.join(options.dist, relativePath, filename)
-    let directory = path.dirname(destination)
-    fs.ensureDirSync(directory)
+
+    fs.ensureFileSync(destination)
 
     let readStream = fs.createReadStream(file)
     let writeStream = fs.createWriteStream(destination)
