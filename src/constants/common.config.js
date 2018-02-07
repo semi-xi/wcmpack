@@ -15,11 +15,9 @@ export default {
               NODE_ENV: 'production'
             }
           }
-        }
-      ],
-      plugins: [
+        },
         {
-          use: require.resolve('../plugins/linkage'),
+          use: require.resolve('../loaders/linkage'),
           options: {}
         }
       ]

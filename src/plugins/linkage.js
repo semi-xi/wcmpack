@@ -1,39 +1,63 @@
-import path from 'path'
-import { parse } from '../parser'
-import { resolveDependencies } from '../share/resolveDependencies'
-import { rootDir, srcDir, distDir, nodeModuleName } from '../share/configuration'
+// import path from 'path'
+// import { Transform } from 'stream'
+// import { parse } from '../parser'
+// import { resolveDependencies } from '../share/resolveDependencies'
+// import { rootDir, srcDir, distDir, nodeModuleName } from '../share/configuration'
 
-export default function linkage (assets, options = {}) {
-  let { file, source, rule, config } = assets
-  source = source.toString()
+// export default class ReuqireTransform extends Transform {
+//   constructor (options) {
+//     super()
 
-  let relativeTo = path.dirname(file)
-  let relativePath = ''
-  if (file.search(srcDir) !== -1) {
-    relativePath = path.dirname(file).replace(srcDir, '')
-  } else if (/[\\/]node_modules[\\/]/.test(file)) {
-    relativePath = path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
-  } else {
-    relativePath = path.dirname(file).replace(rootDir, '')
-  }
+//     this._file = options.file
+//     this._source = ''
+//   }
 
-  let destination = path.join(distDir, relativePath, path.basename(file))
-  let directory = path.dirname(destination)
-  let dependencies = resolveDependencies(source, file, relativeTo)
+//   _transform (buffer, encodeType, callback) {
+//     this._source += buffer
+//     callback()
+//   }
 
-  let tasks = []
-  dependencies.forEach(({ dependency, destination: file, required }) => {
-    let relativePath = path.relative(directory, file)
-    if (relativePath.charAt(0) !== '.') {
-      relativePath = `./${relativePath}`
-    }
+//   _flush (callback) {
+//     let { _file: file, _source: source } = this
+//     let relativeTo = path.dirname(file)
+//     let relativePath = file.search(srcDir) !== -1
+//       ? path.dirname(file).replace(srcDir, '')
+//       : /[\\/]node_modules[\\/]/.test(file)
+//         ? path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
+//         : path.dirname(file).replace(rootDir, '')
 
-    relativePath = relativePath.replace('node_modules', nodeModuleName)
-    source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
+//     let destination = path.join(distDir, relativePath, path.basename(file))
+//     let directory = path.dirname(destination)
+//     let dependencies = resolveDependencies(source, file, relativeTo)
 
-    assets.source = source
-    tasks.push(parse(dependency, rule, config))
-  })
+//     dependencies.forEach(({ dependency, destination: file, required }) => {
+//       let relativePath = path.relative(directory, file)
+//       if (relativePath.charAt(0) !== '.') {
+//         relativePath = `./${relativePath}`
+//       }
 
-  return Promise.all(tasks)
-}
+//       relativePath = relativePath.replace('node_modules', nodeModuleName)
+//       source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
+//     })
+
+//     callback()
+//   }
+// }
+
+// export const transform = function (stream) {
+//   stream.pipe()
+// }
+
+// export const genTask = function () {
+
+// }
+
+// export default function linkage (assets, options = {}, __existsFiles__ = []) {
+//   let { file, source, rule, config } = assets
+//   source = source.toString()
+
+//     // assets.source = source
+//     // tasks.push(parse(dependency, rule, config, __existsFiles__))
+//   return source
+//   // return Promise.all(tasks)
+// }

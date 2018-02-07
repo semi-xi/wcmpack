@@ -1,23 +1,8 @@
-import { Transform } from 'stream'
 import envify from 'loose-envify/replace'
 
-export default class EnvifyParser extends Transform {
-  constructor (options = {}) {
-    super()
+export default function EnvifyTransform (source, options) {
+  options = Object.assign({ env: process.env }, options)
 
-    this._source = ''
-    this._settings = Object.assign({ env: process.env }, options)
-  }
-
-  _transform (buffer, encodeType, callback) {
-    this._source += buffer
-    callback()
-  }
-
-  _flush (callback) {
-    let env = Object.assign({}, process.env, this._settings.env)
-    let code = envify(this._source, [env || process.env])
-    this.push(code)
-    callback()
-  }
+  let env = Object.assign({}, process.env, options.env)
+  return envify(source, [env || process.env])
 }

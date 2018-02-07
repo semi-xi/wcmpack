@@ -1,32 +1,15 @@
 import fs from 'fs-extra'
 import path from 'path'
-import { Transform } from 'stream'
 import { transform } from 'babel-core'
-import { rootDir } from '../share/configuration'
 
-export default class BabelParser extends Transform {
-  constructor (options = {}) {
-    super()
+export default function BabelTransform (source, options, { argv }) {
+  let { root: rootDir } = argv.options
+  let babelrc = path.join(rootDir, '.babelrc')
 
-    let babelrc = path.join(rootDir, '.babelrc')
-    if (fs.existsSync(babelrc)) {
-      options = Object.assign({}, options, { extends: babelrc, babelrc: true })
-    }
-
-    delete options.file
-
-    this._source = ''
-    this._settings = options
+  if (fs.existsSync(babelrc)) {
+    options = Object.assign({}, options, { extends: babelrc, babelrc: true })
   }
 
-  _transform (buffer, encodeType, callback) {
-    this._source += buffer
-    callback()
-  }
-
-  _flush (callback) {
-    let { code } = transform(this._source, this._settings)
-    this.push(code)
-    callback()
-  }
+  let { code } = transform(source, options)
+  return code
 }

@@ -2,9 +2,9 @@ import { callbackify } from 'util'
 import colors from 'colors'
 import program from 'commander'
 import map from 'lodash/map'
-import { transform, watchTransform } from '../compiler'
+import { Compiler } from '../compiler'
 import { trace, formatStats } from '../share/printer'
-import { srcDir, distDir } from '../share/configuration'
+import { rootDir, srcDir, distDir } from '../share/configuration'
 import Package from '../../package.json'
 
 const caughtException = function (error) {
@@ -14,7 +14,7 @@ const caughtException = function (error) {
 
 const printStats = function (stats, watching = false) {
   let statsFormatter = stats.map(({ assets, size }) => {
-    assets = assets.replace(distDir, '')
+    assets = assets.replace(distDir, '.')
     return { assets, size }
   })
 
@@ -50,13 +50,16 @@ program
       error ? caughtException(error) : printStats(stats, options.watch)
     }
 
-    let callbackifyTransform = callbackify(transform)
+    let compiler = new Compiler()
+    let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
     let configFile = options.config ? options.config : '../constants/development.config'
     let transformOptions = require(configFile)
+
     transformOptions = transformOptions.default || transformOptions
+    transformOptions = Object.assign({ root: rootDir, src: srcDir, dist: distDir }, transformOptions)
 
     callbackifyTransform(srcDir, transformOptions, handleTransform)
-    options.watch && watchTransform(transformOptions, handleTransform)
+    options.watch && compiler.watchTransform(srcDir, transformOptions, handleTransform)
   })
 
 program
@@ -64,9 +67,10 @@ program
   .description('Build WeChat Mini App in production environment')
   .option('-c, --config', 'Set configuration file')
   .action(function (options) {
+    let compiler = new Compiler()
     let configFile = options.config ? options.config : '../constants/production.config'
     let transformOptions = require(configFile)
     transformOptions = transformOptions.default || transformOptions
 
-    transform(transformOptions, (error, stats) => error ? caughtException(error) : printStats(stats))
+    compiler.transform(transformOptions, (error, stats) => error ? caughtException(error) : printStats(stats))
   })
