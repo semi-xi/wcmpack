@@ -1,7 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { Transform } from 'stream'
-import chokidar from 'chokidar'
 import map from 'lodash/map'
 import forEach from 'lodash/forEach'
 import flattenDeep from 'lodash/flattenDeep'
@@ -68,37 +67,6 @@ export class Compiler {
       stats.spendTime = Date.now() - startTime
       return stats
     })
-  }
-
-  watchTransform (directory, options = {}, handleEachCallback) {
-    if (typeof handleEachCallback !== 'function') {
-      throw new TypeError('Callback is not a function or not provided')
-    }
-
-    let handleTransform = () => {
-      this.transform(directory, options)
-        .then((stats) => handleEachCallback(null, stats))
-        .catch((error) => handleEachCallback(error))
-    }
-
-    let watcher = chokidar.watch(directory)
-    watcher.on('change', handleTransform)
-    watcher.on('unlink', handleTransform)
-
-    let handleProcessSigint = process.exit.bind(process)
-
-    let handleProcessExit = function () {
-      watcher && watcher.close()
-
-      process.removeListener('exit', handleProcessExit)
-      process.removeListener('SIGINT', handleProcessSigint)
-
-      handleProcessExit = undefined
-      handleProcessSigint = undefined
-    }
-
-    process.on('exit', handleProcessExit)
-    process.on('SIGINT', handleProcessSigint)
   }
 
   parse (file, rule, options = {}) {

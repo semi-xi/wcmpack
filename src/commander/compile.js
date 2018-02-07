@@ -1,8 +1,12 @@
 import { callbackify } from 'util'
 import colors from 'colors'
 import program from 'commander'
+import chokidar from 'chokidar'
 import map from 'lodash/map'
+import flatten from 'lodash/flatten'
+import parallel from 'async/parallel'
 import { Compiler } from '../compiler'
+import initiate, { copyAssets } from '../build'
 import { trace, formatStats } from '../share/printer'
 import { rootDir, srcDir, distDir } from '../share/configuration'
 import Package from '../../package.json'
@@ -46,11 +50,16 @@ program
   .option('-c, --config', 'Set configuration file')
   .option('-w, --watch', 'Watch the file changed, auto compile')
   .action(function (options) {
-    let handleTransform = function (error, stats) {
+    let startTime = Date.now()
+    let handleCallbackTransform = function (error, stats) {
+      stats = flatten(stats)
+      stats.spendTime = Date.now() - startTime
       error ? caughtException(error) : printStats(stats, options.watch)
     }
 
     let compiler = new Compiler()
+    let callbackifyInitiate = callbackify(initiate)
+    let callbackifyCopyAssets = callbackify(copyAssets)
     let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
     let configFile = options.config ? options.config : '../constants/development.config'
     let transformOptions = require(configFile)
@@ -58,8 +67,57 @@ program
     transformOptions = transformOptions.default || transformOptions
     transformOptions = Object.assign({ root: rootDir, src: srcDir, dist: distDir }, transformOptions)
 
-    callbackifyTransform(srcDir, transformOptions, handleTransform)
-    options.watch && compiler.watchTransform(srcDir, transformOptions, handleTransform)
+    let tasks = [
+      callbackifyInitiate.bind(null, srcDir, transformOptions),
+      callbackifyTransform.bind(null, srcDir, transformOptions)
+    ]
+
+    parallel(tasks, function (error, stats) {
+      handleCallbackTransform(error, stats)
+
+      if (options.watch) {
+        let handleFileChange = (path) => {
+          startTime = Date.now()
+
+          if (/\.(json|wxml)$/.test(path)) {
+            trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
+            callbackifyCopyAssets([path], transformOptions, handleCallbackTransform)
+            return
+          }
+
+          trace(`Source file ${colors.bold(path.replace(rootDir, ''))} has been changed, compiling...`)
+          callbackifyTransform(srcDir, transformOptions, handleCallbackTransform)
+        }
+
+        let handleFileUnlink = (path) => {
+          if (/\.(json|wxml)$/.test(path)) {
+            return
+          }
+
+          trace(`Source file ${path} has been changed, compiling...`)
+          callbackifyTransform(srcDir, transformOptions, handleCallbackTransform)
+        }
+
+        let watcher = chokidar.watch(srcDir)
+        watcher.on('change', handleFileChange)
+        watcher.on('unlink', handleFileUnlink)
+
+        let handleProcessSigint = process.exit.bind(process)
+
+        let handleProcessExit = function () {
+          watcher && watcher.close()
+
+          process.removeListener('exit', handleProcessExit)
+          process.removeListener('SIGINT', handleProcessSigint)
+
+          handleProcessExit = undefined
+          handleProcessSigint = undefined
+        }
+
+        process.on('exit', handleProcessExit)
+        process.on('SIGINT', handleProcessSigint)
+      }
+    })
   })
 
 program

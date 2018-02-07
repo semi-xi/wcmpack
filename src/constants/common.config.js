@@ -31,9 +31,6 @@ export default {
           options: {}
         }
       ]
-    },
-    {
-      test: /\.(json|wxml)$/
     }
   ]
 }
