@@ -70,10 +70,6 @@ export class Compiler {
   }
 
   parse (file, rule, options = {}) {
-    if (path.basename(file).charAt(0) === '_') {
-      return Promise.resolve(null)
-    }
-
     if (this.existsAssets(file)) {
       return Promise.resolve(null)
     }
