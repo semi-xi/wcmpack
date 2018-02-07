@@ -6,10 +6,11 @@ const defaultSettings = {
   sourceMap: false
 }
 
-export default function SassTransform (source, options, { argv }) {
-  let { file } = argv
-  options = Object.assign(defaultSettings, options, { file, data: source })
+export default function SassTransform (source, options, transformer) {
+  let file = transformer._file
+  let data = { file, data: source }
 
+  options = Object.assign({}, defaultSettings, options, data)
   let { css: code } = renderSync(options)
   return code
 }

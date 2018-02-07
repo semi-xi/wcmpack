@@ -32,5 +32,8 @@ export default {
         }
       ]
     }
+  ],
+  plugins: [
+    require.resolve('../plugins/spritesmith')
   ]
 }

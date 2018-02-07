@@ -1,25 +1,22 @@
 import path from 'path'
 import forEach from 'lodash/forEach'
-import { findForMatch } from '../share/finder'
+import Parser from '../parser'
+import { findForMatchRules } from '../share/finder'
 import { resolveDependencies } from '../share/resolveDependencies'
 import { nodeModuleName } from '../share/configuration'
 
-export default function ReuqireTransform (source, options, { compiler, parser, argv }) {
-  let { file, options: parseOptions } = argv
-  let { root: rootDir, src: srcDir, dist: distDir } = argv.options
+export default function ReuqireTransform (source, options, transformer) {
+  let file = transformer._file
+  let parser = transformer._parser
+  let tasks = transformer._tasks
 
   let relativeTo = path.dirname(file)
-  let relativePath = file.search(srcDir) !== -1
-    ? path.dirname(file).replace(srcDir, '')
-    : /[\\/]node_modules[\\/]/.test(file)
-      ? path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
-      : path.dirname(file).replace(rootDir, '')
+  let dependencies = resolveDependencies(source, file, relativeTo, options)
 
-  let destination = path.join(distDir, relativePath, path.basename(file))
+  let destination = parser.assets.output(file)
   let directory = path.dirname(destination)
-  let dependencies = resolveDependencies(source, file, relativeTo)
 
-  dependencies.forEach(({ dependency, destination: file, required }) => {
+  forEach(dependencies, ({ dependency, destination: file, required }) => {
     let relativePath = path.relative(directory, file)
     if (relativePath.charAt(0) !== '.') {
       relativePath = `./${relativePath}`
@@ -28,10 +25,12 @@ export default function ReuqireTransform (source, options, { compiler, parser, a
     relativePath = relativePath.replace('node_modules', nodeModuleName)
     source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
 
-    let files = findForMatch(dependency, parseOptions.rules)
-    forEach(files, (rules, file) => {
-      let task = compiler.parse(file, rules[0], parseOptions)
-      parser.addTask(task)
+    let subParser = new Parser(parser.assets, parser.options)
+    let rulesToFile = findForMatchRules(dependency, options.rules)
+
+    forEach(rulesToFile, (rules, file) => {
+      let task = subParser.parse(file, rules[0], options)
+      tasks.addTask(task)
     })
   })
 

@@ -25,7 +25,7 @@ export const find = function (directory, pattern) {
   return results
 }
 
-export const findForMatch = function (directory, rules) {
+export const findForMatchRules = function (directory, rules = []) {
   let assets = {}
   if (!fs.statSync(directory).isDirectory()) {
     let matches = rules.filter(({ test: pattern }) => pattern.test(directory))
@@ -40,7 +40,7 @@ export const findForMatch = function (directory, rules) {
   files.forEach((filename) => {
     let file = path.join(directory, filename)
     if (fs.statSync(file).isDirectory()) {
-      let subAssets = findForMatch(file, rules)
+      let subAssets = findForMatchRules(file, rules)
       assets = Object.assign(assets, subAssets)
       return
     }

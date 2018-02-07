@@ -2,14 +2,17 @@ import fs from 'fs-extra'
 import path from 'path'
 import { transform } from 'babel-core'
 
-export default function BabelTransform (source, options, { argv }) {
-  let { root: rootDir } = argv.options
-  let babelrc = path.join(rootDir, '.babelrc')
+export default function BabelTransform (source, options) {
+  let babelRcFile = path.join(options.rootDir, '.babelrc')
+  let babelOptions = {}
 
-  if (fs.existsSync(babelrc)) {
-    options = Object.assign({}, options, { extends: babelrc, babelrc: true })
+  if (fs.existsSync(babelRcFile)) {
+    babelOptions = Object.assign({}, options, {
+      extends: babelRcFile,
+      babelrc: true
+    })
   }
 
-  let { code } = transform(source, options)
+  let { code } = transform(source, babelOptions)
   return code
 }

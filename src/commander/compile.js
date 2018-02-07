@@ -5,20 +5,23 @@ import chokidar from 'chokidar'
 import map from 'lodash/map'
 import flatten from 'lodash/flatten'
 import parallel from 'async/parallel'
-import { Compiler } from '../compiler'
-import initiate, { copyAssets } from '../build'
+import OptionManager from '../optionManager'
+import Assets from '../assets'
+import Initiation from '../initiation'
+import Compiler from '../compiler'
 import { trace, formatStats } from '../share/printer'
-import { rootDir, srcDir, distDir } from '../share/configuration'
 import Package from '../../package.json'
 
-const caughtException = function (error) {
+let caughtException = function (error) {
   trace(colors.red.bold(error.message))
   error.stack && trace(error.stack)
 }
 
-const printStats = function (stats, watching = false) {
+let printStats = function (stats, options, watching = false) {
+  let { srcDir, outDir } = options
+
   let statsFormatter = stats.map(({ assets, size }) => {
-    assets = assets.replace(distDir, '.')
+    assets = assets.replace(outDir, '.')
     return { assets, size }
   })
 
@@ -51,25 +54,32 @@ program
   .option('-w, --watch', 'Watch the file changed, auto compile')
   .action(function (options) {
     let startTime = Date.now()
+
+    let configFile = options.config ? options.config : '../constants/development.config'
+    let compileOptions = require(configFile)
+    compileOptions = compileOptions.default || compileOptions
+
+    let optionManager = new OptionManager(compileOptions)
+    let assets = new Assets(optionManager)
+    let compiler = new Compiler(assets, optionManager)
+    let initiation = new Initiation(assets, optionManager)
+
+    compileOptions = optionManager.connect(compileOptions)
+    let { rootDir, srcDir } = compileOptions
+
     let handleCallbackTransform = function (error, stats) {
       stats = flatten(stats)
       stats.spendTime = Date.now() - startTime
-      error ? caughtException(error) : printStats(stats, options.watch)
+      error ? caughtException(error) : printStats(stats, compileOptions, options.watch)
     }
 
-    let compiler = new Compiler()
-    let callbackifyInitiate = callbackify(initiate)
-    let callbackifyCopyAssets = callbackify(copyAssets)
+    let callbackifyInitiate = callbackify(initiation.initiate.bind(initiation))
+    let callbackifyCopyFile = callbackify(initiation.copy.bind(initiation))
     let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
-    let configFile = options.config ? options.config : '../constants/development.config'
-    let transformOptions = require(configFile)
-
-    transformOptions = transformOptions.default || transformOptions
-    transformOptions = Object.assign({ root: rootDir, src: srcDir, dist: distDir }, transformOptions)
 
     let tasks = [
-      callbackifyInitiate.bind(null, srcDir, transformOptions),
-      callbackifyTransform.bind(null, srcDir, transformOptions)
+      callbackifyInitiate.bind(null, compileOptions),
+      callbackifyTransform.bind(null, compileOptions)
     ]
 
     parallel(tasks, function (error, stats) {
@@ -81,12 +91,12 @@ program
 
           if (/\.(json|wxml)$/.test(path)) {
             trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
-            callbackifyCopyAssets([path], transformOptions, handleCallbackTransform)
+            callbackifyCopyFile([path], compileOptions, handleCallbackTransform)
             return
           }
 
           trace(`Source file ${colors.bold(path.replace(rootDir, ''))} has been changed, compiling...`)
-          callbackifyTransform(srcDir, transformOptions, handleCallbackTransform)
+          callbackifyTransform(compileOptions, handleCallbackTransform)
         }
 
         let handleFileUnlink = (path) => {
@@ -95,7 +105,7 @@ program
           }
 
           trace(`Source file ${path} has been changed, compiling...`)
-          callbackifyTransform(srcDir, transformOptions, handleCallbackTransform)
+          callbackifyTransform(compileOptions, handleCallbackTransform)
         }
 
         let watcher = chokidar.watch(srcDir)
@@ -118,17 +128,4 @@ program
         process.on('SIGINT', handleProcessSigint)
       }
     })
-  })
-
-program
-  .command('production')
-  .description('Build WeChat Mini App in production environment')
-  .option('-c, --config', 'Set configuration file')
-  .action(function (options) {
-    let compiler = new Compiler()
-    let configFile = options.config ? options.config : '../constants/production.config'
-    let transformOptions = require(configFile)
-    transformOptions = transformOptions.default || transformOptions
-
-    compiler.transform(transformOptions, (error, stats) => error ? caughtException(error) : printStats(stats))
   })
