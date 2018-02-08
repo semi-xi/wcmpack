@@ -27,6 +27,10 @@ export class CompileTask {
     this.initiation = new Initiation(this.assets, this.optionManager)
     this.compileOptions = this.optionManager.connect(compileOptions)
     this.running = false
+
+    if (!/https?:\/\//.test(this.compileOptions.pubPath)) {
+      throw new TypeError(`Config publicPath is ${this.compileOptions.pubPath}, it can not be visited in WeChat Mini Program`)
+    }
   }
 
   run (options = this.options) {
@@ -183,7 +187,7 @@ export class CompileTask {
     printer.push('')
 
     if (warning.length > 0) {
-      printer.push(colors.yellow.bold('Some below files required each other, it maybe occur circular reference error in WeChat Mini Application'))
+      printer.push(colors.yellow.bold('Some below files required each other, it maybe occur circular reference error in WeChat Mini Program'))
       printer.push(warning.join('\n'))
       printer.push('')
     }
@@ -194,10 +198,21 @@ export class CompileTask {
 
 program
   .command('development')
-  .description('Build WeChat Mini App in development environment')
+  .description('Build WeChat Mini Program in development environment')
   .option('-c, --config', 'Set configuration file')
   .option('-w, --watch', 'Watch the file changed, auto compile')
   .action(function (options) {
+    let compile = new CompileTask(options)
+    compile.run()
+  })
+
+program
+  .command('production')
+  .description('Build WeChat Mini Program in production environment')
+  .option('-c, --config', 'Set configuration file')
+  .action(function (options) {
+    options.config = options.config || '../constants/production.config'
+
     let compile = new CompileTask(options)
     compile.run()
   })

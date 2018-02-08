@@ -24,13 +24,9 @@ export default class Initiation {
       this.assets.add(file)
 
       return new Promise((resolve, reject) => {
-        let destination = this.assets.output(file)
-        fs.ensureFileSync(destination)
-
         let readStream = fs.createReadStream(file)
-        let writeStream = fs.createWriteStream(destination)
-
         let size = 0
+
         readStream.on('data', (buffer) => {
           size += buffer.length
         })
@@ -40,7 +36,10 @@ export default class Initiation {
           readStream.end()
         })
 
-        readStream.on('end', () => {
+        let destination = this.assets.output(file)
+        fs.ensureFileSync(destination)
+        let writeStream = fs.createWriteStream(destination)
+        writeStream.on('finish', () => {
           let stats = {
             assets: destination,
             size: size

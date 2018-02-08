@@ -21,15 +21,7 @@ export default class Parser {
 
     return new Promise((resolve, reject) => {
       let taskManager = new TaskManager()
-      let destination = this.assets.output(file)
-      fs.ensureFileSync(destination)
-
       let readStream = fs.createReadStream(file)
-      let writeStream = fs.createWriteStream(destination)
-      let transStream = new ParserTransform(file, rule, options, taskManager, this)
-
-      readStream = readStream.pipe(transStream)
-
       let size = 0
       readStream.on('data', (buffer) => {
         size += buffer.byteLength
@@ -40,7 +32,13 @@ export default class Parser {
         readStream.end()
       })
 
-      readStream.on('end', () => {
+      let transStream = new ParserTransform(file, rule, options, taskManager, this)
+      readStream = readStream.pipe(transStream)
+
+      let destination = this.assets.output(file)
+      fs.ensureFileSync(destination)
+      let writeStream = fs.createWriteStream(destination)
+      writeStream.on('finish', () => {
         let stats = {
           assets: destination,
           size: size

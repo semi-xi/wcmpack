@@ -18,12 +18,7 @@ export default class CopyPlugin {
     let { pattern, directory, staticDir, output } = options
     let files = find(directory, pattern)
     let tasks = files.map((file) => new Promise((resolve, reject) => {
-      let destination = file.replace(directory, path.join(staticDir, output))
-      fs.ensureFileSync(destination)
-
       let readStream = fs.createReadStream(file)
-      let writeStream = fs.createWriteStream(destination)
-
       let size = 0
       readStream.on('data', (buffer) => {
         size += buffer.byteLength
@@ -34,7 +29,10 @@ export default class CopyPlugin {
         readStream.end()
       })
 
-      readStream.on('end', function () {
+      let destination = file.replace(directory, path.join(staticDir, output))
+      fs.ensureFileSync(destination)
+      let writeStream = fs.createWriteStream(destination)
+      writeStream.on('finish', function () {
         let stats = {
           assets: destination,
           size: size

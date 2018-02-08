@@ -7,6 +7,7 @@ import trimEnd from 'lodash/trimEnd'
 import Spritesmith from 'spritesmith'
 import SpritesmithTemplate from 'spritesheet-templates'
 import { find } from '../share/finder'
+import { gen } from '../share/hash'
 
 const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
 
@@ -55,6 +56,11 @@ export default class SpriteSmithPlugin {
           let prop = { name, total_width: properties.width, total_height: properties.height }
           sprites.push(Object.assign(prop, data))
         })
+
+        let filename = path.basename(imageFile)
+        let extname = path.extname(imageFile)
+        let basename = filename.replace(extname, '')
+        imageFile = path.join(imageFile.replace(filename, ''), basename + '.' + gen(buffer) + extname)
 
         let _imageFile = path.join(staticDir, imageFile)
         let _styleFile = path.join(tmplDir, styleFile)

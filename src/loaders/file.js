@@ -4,6 +4,7 @@ import colors from 'colors'
 import trimStart from 'lodash/trimStart'
 import trimEnd from 'lodash/trimEnd'
 import forEach from 'lodash/forEach'
+import { genFileSync } from '../share/hash'
 
 const WXMLImageRegExp = /<image[^>]+.*?src=["']?([^"'\s]+)["']?.*?\s*(\/>|><\/image>)/ig
 const WXSSImageRegExp = /url\(["']?([^"'\s]+)["']?\)/ig
@@ -35,6 +36,16 @@ export default function FileTransform (source, options, transformer) {
     }
 
     let [string, relativePath] = match
+    code = code.replace(string, '')
+
+    if (/^data:([\w/]+?);base64,/.test(relativePath)) {
+      continue
+    }
+
+    if (/^https?:\/\//.test(relativePath)) {
+      continue
+    }
+
     let filename = path.basename(relativePath)
     let file = ''
     switch (relativePath.charAt(0)) {
@@ -51,6 +62,10 @@ export default function FileTransform (source, options, transformer) {
         continue
     }
 
+    let extname = path.extname(filename)
+    let basename = path.basename(filename).replace(extname, '')
+    filename = basename + '.' + genFileSync(file) + extname
+
     let destination = path.join(staticDir, filename)
     if (!files[file]) {
       files[file] = destination
@@ -62,8 +77,6 @@ export default function FileTransform (source, options, transformer) {
         return string.replace(file, url)
       })
     })
-
-    code = code.replace(string, '')
   }
 
   forEach(files, (destination, file) => {
@@ -78,11 +91,7 @@ export default function FileTransform (source, options, transformer) {
     }
 
     taskManager.addTask(new Promise((resolve, reject) => {
-      fs.ensureFileSync(destination)
-
       let readStream = fs.createReadStream(file)
-      let writeStream = fs.createWriteStream(destination)
-
       let size = 0
       readStream.on('data', (buffer) => {
         size += buffer.length
@@ -93,7 +102,9 @@ export default function FileTransform (source, options, transformer) {
         readStream.end()
       })
 
-      readStream.on('end', () => {
+      fs.ensureFileSync(destination)
+      let writeStream = fs.createWriteStream(destination)
+      writeStream.on('finish', () => {
         let stats = {
           assets: destination,
           size: size
