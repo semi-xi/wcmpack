@@ -53,7 +53,6 @@ export default function FileTransform (source, options, transformer) {
       files[file] = destination
     }
 
-    console.log(string, relativePath)
     let url = trimEnd(pubPath, '/') + '/' + trimStart(destination.replace(staticDir, ''), '/')
     source = source.replace(string, () => {
       return string.replace(regexp, (string, file) => {
