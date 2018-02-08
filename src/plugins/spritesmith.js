@@ -10,18 +10,18 @@ const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
 
 export default class SpriteSmithPlugin {
   constructor (options) {
-    let template = 'panels/sprite.scss.template.handlebars'
-    let filename = 'sprite.png'
-    let scssFilename = 'sprite.scss'
-    this.options = Object.assign({ template, filename, scssFilename }, options)
+    let template = 'sprites/sprite.scss.template.handlebars'
+    let imageFile = 'sprites/sprite.png'
+    let styleFile = 'sprites/sprite.scss'
+    this.options = Object.assign({ template, imageFile, styleFile }, options)
   }
 
-  initiate (optionManager = {}) {
+  initiate (optionManager) {
     let options = optionManager.connect(this.options)
 
     let {
       srcDir, staticDir, tmplDir, pubPath,
-      template, filename, scssFilename
+      template, imageFile, styleFile
     } = options
 
     template = path.join(srcDir, template)
@@ -47,33 +47,36 @@ export default class SpriteSmithPlugin {
         let { image: buffer, coordinates, properties } = result
 
         let sprites = []
-        forEach(coordinates, (data, filename) => {
-          let name = path.basename(filename).replace(path.extname(filename), '')
+        forEach(coordinates, (data, imageFile) => {
+          let name = path.basename(imageFile).replace(path.extname(imageFile), '')
           let prop = { name, total_width: properties.width, total_height: properties.height }
           sprites.push(Object.assign(prop, data))
         })
 
-        let imageFile = path.join(staticDir, filename)
-        let scssFile = path.join(tmplDir, scssFilename)
-        let image = path.join(pubPath, filename)
+        let _imageFile = path.join(staticDir, imageFile)
+        let _styleFile = path.join(tmplDir, styleFile)
+        let image = path.join(pubPath, _imageFile)
         let spritesheet = Object.assign({ image }, properties)
         let source = SpritesmithTemplate({ sprites, spritesheet }, { format: 'spriteScssTemplate' })
 
-        fs.ensureDirSync(staticDir)
-        fs.ensureDirSync(tmplDir)
+        let imageDirectory = path.dirname(_imageFile)
+        let styleDirectory = path.dirname(_styleFile)
+
+        fs.ensureDirSync(imageDirectory)
+        fs.ensureDirSync(styleDirectory)
 
         Promise.all([
-          promisifyWriteFile(imageFile, buffer),
-          promisifyWriteFile(scssFile, source)
+          promisifyWriteFile(_imageFile, buffer),
+          promisifyWriteFile(_styleFile, source)
         ])
           .then(() => {
             let stats = [
               {
-                assets: imageFile,
+                assets: _imageFile,
                 size: source.length
               },
               {
-                assets: scssFile,
+                assets: _styleFile,
                 size: buffer.byteLength
               }
             ]

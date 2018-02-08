@@ -1,5 +1,6 @@
 import SpritesmithPlugin from '../plugins/spritesmith'
 import StaticServerPlugin from '../plugins/staticServer'
+import CopyPlugin from '../plugins/copy'
 
 export default {
   rules: [
@@ -38,6 +39,7 @@ export default {
   ],
   plugins: [
     new SpritesmithPlugin(),
-    new StaticServerPlugin()
+    new StaticServerPlugin(),
+    new CopyPlugin()
   ]
 }

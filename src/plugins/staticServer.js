@@ -10,7 +10,7 @@ export default class StaticServer {
     this.options = Object.assign({ port }, options)
   }
 
-  async (optionManager = {}, printer) {
+  async (optionManager, printer) {
     let options = optionManager.connect(this.options)
     let { staticDir, pubPath, port } = options
 
