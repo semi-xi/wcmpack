@@ -2,6 +2,8 @@ import fs from 'fs-extra'
 import path from 'path'
 import { promisify } from 'util'
 import forEach from 'lodash/forEach'
+import trimStart from 'lodash/trimStart'
+import trimEnd from 'lodash/trimEnd'
 import Spritesmith from 'spritesmith'
 import SpritesmithTemplate from 'spritesheet-templates'
 import { find } from '../share/finder'
@@ -56,7 +58,8 @@ export default class SpriteSmithPlugin {
 
         let _imageFile = path.join(staticDir, imageFile)
         let _styleFile = path.join(tmplDir, styleFile)
-        let image = path.join(pubPath, imageFile)
+
+        let image = trimEnd(pubPath, '/') + '/' + trimStart(imageFile, '/')
         let spritesheet = Object.assign({ image }, properties)
         let source = SpritesmithTemplate({ sprites, spritesheet }, { format: 'spriteScssTemplate' })
 
