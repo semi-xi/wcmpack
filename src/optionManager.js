@@ -13,6 +13,7 @@ export default class OptionsManager {
     this.pubPath = options.publicPath || `http://${localip()}:3000`
     this.npmDir = options.nodeModuleDirectoryName || 'npm'
     this.rules = options.rules || []
+    this.silence = process.argv.indexOf('--quiet') !== -1
   }
 
   connect (options) {

@@ -10,68 +10,79 @@ import OptionManager from '../optionManager'
 import Assets from '../assets'
 import Initiation from '../initiation'
 import Compiler from '../compiler'
-import { trace, formatStats } from '../share/printer'
+import Printer from '../printer'
 import Package from '../../package.json'
 
-let caughtException = function (error) {
-  trace(colors.red.bold(error.message))
-  error.stack && trace(error.stack)
-}
-
-let printStats = function (stats, options, watching = false) {
-  let { rootDir, srcDir } = options
-
-  let statsFormatter = stats.map(({ assets, size }) => {
-    assets = assets.replace(rootDir, '.')
-    return { assets, size }
-  })
-
-  let warning = map(stats.conflict, (dependency, file) => {
-    file = file.replace(rootDir, '')
-    dependency = dependency.replace(rootDir, '')
-    return `-> ${file} ${colors.gray('reqiured')} ${dependency}`
-  })
-
-  trace('')
-  trace(`Wcapack Version at ${colors.cyan.bold(Package.version)}`)
-  trace(`Time: ${colors.bold(colors.white(stats.spendTime))}ms\n`)
-  trace(formatStats(statsFormatter))
-  trace('')
-  trace(`✨ Open your ${colors.magenta.bold('WeChat Develop Tool')} to serve`)
-  watching && trace(`✨ Watching folder ${colors.white.bold(srcDir)}, cancel at ${colors.white.bold('Ctrl + C')}`)
-  trace('')
-
-  if (warning.length > 0) {
-    trace(colors.yellow.bold('Some below files required each other, it maybe occur circular reference error in WeChat Mini Application'))
-    trace(warning.join('\n'))
-    trace('')
-  }
-}
-
-program
-  .command('development')
-  .description('Build WeChat Mini App in development environment')
-  .option('-c, --config', 'Set configuration file')
-  .option('-w, --watch', 'Watch the file changed, auto compile')
-  .action(function (options) {
-    let startTime = Date.now()
-
+export class CompileTask {
+  constructor (options) {
     let configFile = options.config ? options.config : '../constants/development.config'
     let compileOptions = require(configFile)
     compileOptions = compileOptions.default || compileOptions
 
-    let optionManager = new OptionManager(compileOptions)
-    let assets = new Assets(optionManager)
-    let compiler = new Compiler(assets, optionManager)
-    let initiation = new Initiation(assets, optionManager)
+    this.options = options
+    this.optionManager = new OptionManager(compileOptions)
+    this.assets = new Assets(this.optionManager)
+    this.printer = new Printer(this.optionManager)
+    this.compiler = new Compiler(this.assets, this.optionManager, this.printer)
+    this.initiation = new Initiation(this.assets, this.optionManager)
+    this.compileOptions = this.optionManager.connect(compileOptions)
+  }
 
-    compileOptions = optionManager.connect(compileOptions)
+  run (options = this.options) {
+    let startTime = Date.now()
+
+    let { watch: isWatchFiles } = options
+    let { optionManager, printer, compiler, initiation, compileOptions } = this
     let { rootDir, srcDir, plugins } = compileOptions
 
-    let handleCallbackTransform = function (error, stats) {
+    let handleCallbackTransform = (error, stats) => {
       stats = flatten(stats)
       stats.spendTime = Date.now() - startTime
-      error ? caughtException(error) : printStats(stats, compileOptions, options.watch)
+      error ? this.caughtException(error) : this.printStats(stats, compileOptions, isWatchFiles)
+    }
+
+    let handleWatchFiles = () => {
+      let handleFileChange = (path) => {
+        startTime = Date.now()
+
+        if (/\.(json|wxml)$/.test(path)) {
+          printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
+          callbackifyCopyFile([path], compileOptions, handleCallbackTransform)
+          return
+        }
+
+        printer.trace(`Source file ${colors.bold(path.replace(rootDir, ''))} has been changed, compiling...`)
+        callbackifyTransform(compileOptions, handleCallbackTransform)
+      }
+
+      let handleFileUnlink = (path) => {
+        if (/\.(json|wxml)$/.test(path)) {
+          printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been deleted, ignore it`)
+          return
+        }
+
+        printer.trace(`Source file ${path} has been changed, compiling...`)
+        callbackifyTransform(compileOptions, handleCallbackTransform)
+      }
+
+      let watcher = chokidar.watch(srcDir)
+      watcher.on('change', handleFileChange)
+      watcher.on('unlink', handleFileUnlink)
+
+      let handleProcessSigint = process.exit.bind(process)
+
+      let handleProcessExit = function () {
+        watcher && watcher.close()
+
+        process.removeListener('exit', handleProcessExit)
+        process.removeListener('SIGINT', handleProcessSigint)
+
+        handleProcessExit = undefined
+        handleProcessSigint = undefined
+      }
+
+      process.on('exit', handleProcessExit)
+      process.on('SIGINT', handleProcessSigint)
     }
 
     let callbackifyInitiate = callbackify(initiation.initiate.bind(initiation))
@@ -83,12 +94,12 @@ program
 
     plugins.forEach((plugin) => {
       if (typeof plugin.initiate === 'function') {
-        let callbackifyInitiate = callbackify(plugin.initiate.bind(plugin, optionManager))
+        let callbackifyInitiate = callbackify(plugin.initiate.bind(plugin, optionManager, printer))
         tasks.push(callbackifyInitiate)
       }
 
       if (typeof plugin.async === 'function') {
-        let callbackifyAsync = callbackify(plugin.async.bind(plugin, optionManager))
+        let callbackifyAsync = callbackify(plugin.async.bind(plugin, optionManager, printer))
         asyncTasks.push(callbackifyAsync)
       }
     })
@@ -106,48 +117,59 @@ program
 
     series(tasks, (error, stats) => {
       handleCallbackTransform(error, stats)
-
-      if (options.watch) {
-        let handleFileChange = (path) => {
-          startTime = Date.now()
-
-          if (/\.(json|wxml)$/.test(path)) {
-            trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
-            callbackifyCopyFile([path], compileOptions, handleCallbackTransform)
-            return
-          }
-
-          trace(`Source file ${colors.bold(path.replace(rootDir, ''))} has been changed, compiling...`)
-          callbackifyTransform(compileOptions, handleCallbackTransform)
-        }
-
-        let handleFileUnlink = (path) => {
-          if (/\.(json|wxml)$/.test(path)) {
-            return
-          }
-
-          trace(`Source file ${path} has been changed, compiling...`)
-          callbackifyTransform(compileOptions, handleCallbackTransform)
-        }
-
-        let watcher = chokidar.watch(srcDir)
-        watcher.on('change', handleFileChange)
-        watcher.on('unlink', handleFileUnlink)
-
-        let handleProcessSigint = process.exit.bind(process)
-
-        let handleProcessExit = function () {
-          watcher && watcher.close()
-
-          process.removeListener('exit', handleProcessExit)
-          process.removeListener('SIGINT', handleProcessSigint)
-
-          handleProcessExit = undefined
-          handleProcessSigint = undefined
-        }
-
-        process.on('exit', handleProcessExit)
-        process.on('SIGINT', handleProcessSigint)
-      }
+      isWatchFiles && handleWatchFiles()
     })
+  }
+
+  caughtException (error) {
+    let { printer } = this
+    printer.push(colors.red.bold(error.message))
+    error.stack && printer.push(error.stack)
+    printer.flush()
+  }
+
+  printStats (stats, options, watching = false) {
+    let { rootDir, srcDir } = options
+
+    let statsFormatter = stats.map(({ assets, size }) => {
+      assets = assets.replace(rootDir, '.')
+      return { assets, size }
+    })
+
+    let warning = map(stats.conflict, (dependency, file) => {
+      file = file.replace(rootDir, '')
+      dependency = dependency.replace(rootDir, '')
+      return `-> ${file} ${colors.gray('reqiured')} ${dependency}`
+    })
+
+    let printer = this.printer
+
+    printer.push('')
+    printer.push(`Wcapack Version at ${colors.cyan.bold(Package.version)}`)
+    printer.push(`Time: ${colors.bold(colors.white(stats.spendTime))}ms\n`)
+    printer.push(printer.formatStats(statsFormatter))
+    printer.push('')
+
+    printer.push(`✨ Open your ${colors.magenta.bold('WeChat Develop Tool')} to serve`)
+    watching && printer.push(`✨ Watching folder ${colors.white.bold(srcDir)}, cancel at ${colors.white.bold('Ctrl + C')}`)
+    printer.push('')
+
+    if (warning.length > 0) {
+      printer.push(colors.yellow.bold('Some below files required each other, it maybe occur circular reference error in WeChat Mini Application'))
+      printer.push(warning.join('\n'))
+      printer.push('')
+    }
+
+    printer.flush()
+  }
+}
+
+program
+  .command('development')
+  .description('Build WeChat Mini App in development environment')
+  .option('-c, --config', 'Set configuration file')
+  .option('-w, --watch', 'Watch the file changed, auto compile')
+  .action(function (options) {
+    let compile = new CompileTask(options)
+    compile.run()
   })
