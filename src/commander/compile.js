@@ -36,7 +36,7 @@ export class CompileTask {
     let { rootDir, srcDir, plugins } = compileOptions
 
     let handleCallbackTransform = (error, stats) => {
-      stats = flatten(stats)
+      stats = flatten(stats).filter((stats) => stats)
       stats.spendTime = Date.now() - startTime
       error ? this.caughtException(error) : this.printStats(stats, compileOptions, isWatchFiles)
     }
@@ -89,10 +89,16 @@ export class CompileTask {
     let callbackifyCopyFile = callbackify(initiation.copy.bind(initiation))
     let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
 
+    let beforeTasks = []
     let tasks = []
     let asyncTasks = []
 
     plugins.forEach((plugin) => {
+      if (typeof plugin.beforeInitiate === 'function') {
+        let callbackifyBeforeInitiate = callbackify(plugin.beforeInitiate.bind(plugin, optionManager, printer))
+        beforeTasks.push(callbackifyBeforeInitiate)
+      }
+
       if (typeof plugin.initiate === 'function') {
         let callbackifyInitiate = callbackify(plugin.initiate.bind(plugin, optionManager, printer))
         tasks.push(callbackifyInitiate)
@@ -115,9 +121,15 @@ export class CompileTask {
       }
     })
 
-    series(tasks, (error, stats) => {
-      handleCallbackTransform(error, stats)
-      isWatchFiles && handleWatchFiles()
+    series(beforeTasks, (error) => {
+      if (error) {
+        throw error
+      }
+
+      series(tasks, (error, stats) => {
+        handleCallbackTransform(error, stats)
+        isWatchFiles && handleWatchFiles()
+      })
     })
   }
 

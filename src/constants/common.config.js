@@ -1,6 +1,7 @@
+import CleanerPlugin from '../plugins/cleaner'
+import CopyPlugin from '../plugins/copy'
 import SpritesmithPlugin from '../plugins/spritesmith'
 import StaticServerPlugin from '../plugins/staticServer'
-import CopyPlugin from '../plugins/copy'
 
 export default {
   rules: [
@@ -38,8 +39,9 @@ export default {
     }
   ],
   plugins: [
+    new CleanerPlugin(),
+    new CopyPlugin(),
     new SpritesmithPlugin(),
-    new StaticServerPlugin(),
-    new CopyPlugin()
+    new StaticServerPlugin()
   ]
 }

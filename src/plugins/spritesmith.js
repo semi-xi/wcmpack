@@ -9,7 +9,7 @@ import { find } from '../share/finder'
 const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
 
 export default class SpriteSmithPlugin {
-  constructor (options) {
+  constructor (options = {}) {
     let template = 'sprites/sprite.scss.template.handlebars'
     let imageFile = 'sprites/sprite.png'
     let styleFile = 'sprites/sprite.scss'

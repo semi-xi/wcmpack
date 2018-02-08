@@ -5,7 +5,7 @@ import Finalhandler from 'finalhandler'
 import ServeStatic from 'serve-static'
 
 export default class StaticServer {
-  constructor (options) {
+  constructor (options = {}) {
     let port = 3000
     this.options = Object.assign({ port }, options)
   }

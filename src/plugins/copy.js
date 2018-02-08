@@ -1,18 +1,21 @@
 import fs from 'fs-extra'
+import path from 'path'
 import { find } from '../share/finder'
 
 export default class CopyPlugin {
-  constructor (options) {
+  constructor (options = {}) {
     let pattern = /\.(png|jpe?g)$/
-    this.options = Object.assign({ pattern }, options)
+    let directory = path.join(process.cwd(), 'src/panels')
+    let output = './panels'
+    this.options = Object.assign({ pattern, directory, output }, options)
   }
 
   initiate (optionManager) {
     let options = optionManager.connect(this.options)
-    let { pattern, srcDir, staticDir } = options
-    let files = find(srcDir, pattern)
+    let { pattern, directory, staticDir, output } = options
+    let files = find(directory, pattern)
     let tasks = files.map((file) => new Promise((resolve) => {
-      let destination = file.replace(srcDir, staticDir)
+      let destination = file.replace(directory, path.join(staticDir, output))
       fs.ensureFileSync(destination)
 
       let readStream = fs.createReadStream(file)
