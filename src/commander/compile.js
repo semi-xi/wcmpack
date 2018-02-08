@@ -5,6 +5,7 @@ import chokidar from 'chokidar'
 import map from 'lodash/map'
 import flatten from 'lodash/flatten'
 import parallel from 'async/parallel'
+import series from 'async/series'
 import OptionManager from '../optionManager'
 import Assets from '../assets'
 import Initiation from '../initiation'
@@ -18,16 +19,16 @@ let caughtException = function (error) {
 }
 
 let printStats = function (stats, options, watching = false) {
-  let { srcDir, outDir } = options
+  let { rootDir, srcDir } = options
 
   let statsFormatter = stats.map(({ assets, size }) => {
-    assets = assets.replace(outDir, '.')
+    assets = assets.replace(rootDir, '.')
     return { assets, size }
   })
 
   let warning = map(stats.conflict, (dependency, file) => {
-    file = file.replace(srcDir, '')
-    dependency = dependency.replace(srcDir, '')
+    file = file.replace(rootDir, '')
+    dependency = dependency.replace(rootDir, '')
     return `-> ${file} ${colors.gray('reqiured')} ${dependency}`
   })
 
@@ -65,7 +66,7 @@ program
     let initiation = new Initiation(assets, optionManager)
 
     compileOptions = optionManager.connect(compileOptions)
-    let { rootDir, srcDir } = compileOptions
+    let { rootDir, srcDir, plugins } = compileOptions
 
     let handleCallbackTransform = function (error, stats) {
       stats = flatten(stats)
@@ -77,12 +78,33 @@ program
     let callbackifyCopyFile = callbackify(initiation.copy.bind(initiation))
     let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
 
-    let tasks = [
+    let tasks = []
+    let asyncTasks = []
+
+    plugins.forEach((plugin) => {
+      if (typeof plugin.initiate === 'function') {
+        let callbackifyInitiate = callbackify(plugin.initiate.bind(plugin, optionManager))
+        tasks.push(callbackifyInitiate)
+      }
+
+      if (typeof plugin.async === 'function') {
+        let callbackifyAsync = callbackify(plugin.async.bind(plugin, optionManager))
+        asyncTasks.push(callbackifyAsync)
+      }
+    })
+
+    tasks = tasks.concat([
       callbackifyInitiate.bind(null, compileOptions),
       callbackifyTransform.bind(null, compileOptions)
-    ]
+    ])
 
-    parallel(tasks, function (error, stats) {
+    parallel(asyncTasks, (error) => {
+      if (error) {
+        throw error
+      }
+    })
+
+    series(tasks, (error, stats) => {
       handleCallbackTransform(error, stats)
 
       if (options.watch) {

@@ -1,3 +1,6 @@
+import SpritesmithPlugin from '../plugins/spritesmith'
+import StaticServerPlugin from '../plugins/staticServer'
+
 export default {
   rules: [
     {
@@ -34,6 +37,7 @@ export default {
     }
   ],
   plugins: [
-    require.resolve('../plugins/spritesmith')
+    new SpritesmithPlugin(),
+    new StaticServerPlugin()
   ]
 }

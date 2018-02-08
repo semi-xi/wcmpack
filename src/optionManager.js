@@ -7,10 +7,10 @@ export default class OptionsManager {
     this.rootDir = process.cwd()
     this.execDir = path.join(__dirname, '../')
     this.srcDir = path.join(this.rootDir, options.src || 'src')
-    this.outDir = path.join(this.rootDir, options.output || 'dist')
+    this.outDir = path.join(this.rootDir, options.output || 'app')
     this.staticDir = path.join(this.rootDir, options.static || 'static')
     this.tmplDir = path.join(this.rootDir, options.tmpl || '.temporary')
-    this.pubPath = options.publicPath || 'http://' + localip() + '/'
+    this.pubPath = options.publicPath || `http://${localip()}:3000`
     this.npmDir = options.nodeModuleDirectoryName || 'npm'
     this.rules = options.rules || []
   }

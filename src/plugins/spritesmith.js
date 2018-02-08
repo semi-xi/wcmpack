@@ -4,26 +4,27 @@ import { promisify } from 'util'
 import forEach from 'lodash/forEach'
 import Spritesmith from 'spritesmith'
 import SpritesmithTemplate from 'spritesheet-templates'
-import { find } from './share/finder'
+import { find } from '../share/finder'
 
 const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
 
 export default class SpriteSmithPlugin {
-  constructor (assets, options) {
-    this.assets = assets
-    this.options = options
+  constructor (options) {
+    let template = 'panels/sprite.scss.template.handlebars'
+    let filename = 'sprite.png'
+    let scssFilename = 'sprite.scss'
+    this.options = Object.assign({ template, filename, scssFilename }, options)
   }
 
-  initiate () {
+  initiate (optionManager = {}) {
+    let options = optionManager.connect(this.options)
+
     let {
       srcDir, staticDir, tmplDir, pubPath,
       template, filename, scssFilename
-    } = this.options
+    } = options
 
-    template = path.join(srcDir, 'panels/sprite.scss.template.handlebars')
-    filename = filename || 'sprite.png'
-    scssFilename = scssFilename || 'sprite.scss'
-
+    template = path.join(srcDir, template)
     if (!(template && fs.existsSync(template))) {
       return Promise.reject(new Error(`Template ${template} is not found or not be provied`))
     }
