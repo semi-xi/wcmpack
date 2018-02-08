@@ -54,7 +54,7 @@ export class CompileTask {
         startTime = Date.now()
         this.running = true
 
-        if (/\.(json|wxml)$/.test(path)) {
+        if (/\.(json)$/.test(path)) {
           printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
           callbackifyCopyFile([path], compileOptions, handleCallbackTransform)
           return
