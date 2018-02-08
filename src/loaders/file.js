@@ -44,8 +44,11 @@ export default function FileTransform (source, options, transformer) {
       case '/':
         file = path.join(rootDir, relativePath)
         break
-      default:
+      case '.':
         file = path.join(directory, relativePath)
+        break
+      default:
+        continue
     }
 
     let destination = path.join(staticDir, filename)

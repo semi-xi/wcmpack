@@ -56,7 +56,7 @@ export default class SpriteSmithPlugin {
 
         let _imageFile = path.join(staticDir, imageFile)
         let _styleFile = path.join(tmplDir, styleFile)
-        let image = path.join(pubPath, _imageFile)
+        let image = path.join(pubPath, imageFile)
         let spritesheet = Object.assign({ image }, properties)
         let source = SpritesmithTemplate({ sprites, spritesheet }, { format: 'spriteScssTemplate' })
 
