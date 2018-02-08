@@ -26,10 +26,12 @@ export class CompileTask {
     this.compiler = new Compiler(this.assets, this.optionManager, this.printer)
     this.initiation = new Initiation(this.assets, this.optionManager)
     this.compileOptions = this.optionManager.connect(compileOptions)
+    this.running = false
   }
 
   run (options = this.options) {
     let startTime = Date.now()
+    this.running = true
 
     let { watch: isWatchFiles } = options
     let { optionManager, printer, compiler, initiation, compileOptions } = this
@@ -39,11 +41,18 @@ export class CompileTask {
       stats = flatten(stats).filter((stats) => stats)
       stats.spendTime = Date.now() - startTime
       error ? this.caughtException(error) : this.printStats(stats, compileOptions, isWatchFiles)
+
+      this.running = false
     }
 
     let handleWatchFiles = () => {
       let handleFileChange = (path) => {
+        if (this.running === true) {
+          return
+        }
+
         startTime = Date.now()
+        this.running = true
 
         if (/\.(json|wxml)$/.test(path)) {
           printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
@@ -56,10 +65,16 @@ export class CompileTask {
       }
 
       let handleFileUnlink = (path) => {
+        if (this.running === true) {
+          return
+        }
+
         if (/\.(json|wxml)$/.test(path)) {
           printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been deleted, ignore it`)
           return
         }
+
+        this.running = true
 
         printer.trace(`Source file ${path} has been changed, compiling...`)
         callbackifyTransform(compileOptions, handleCallbackTransform)
@@ -121,6 +136,8 @@ export class CompileTask {
       }
     })
 
+    isWatchFiles && handleWatchFiles()
+
     series(beforeTasks, (error) => {
       if (error) {
         throw error
@@ -128,7 +145,6 @@ export class CompileTask {
 
       series(tasks, (error, stats) => {
         handleCallbackTransform(error, stats)
-        isWatchFiles && handleWatchFiles()
       })
     })
   }

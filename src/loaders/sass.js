@@ -7,6 +7,8 @@ const defaultSettings = {
 }
 
 export default function SassTransform (source, options, transformer) {
+  source = source.toString()
+
   let file = transformer._file
   let data = { file, data: source }
 

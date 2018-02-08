@@ -1,5 +1,4 @@
 import CleanerPlugin from '../plugins/cleaner'
-import CopyPlugin from '../plugins/copy'
 import SpritesmithPlugin from '../plugins/spritesmith'
 import StaticServerPlugin from '../plugins/staticServer'
 
@@ -34,13 +33,25 @@ export default {
         {
           use: require.resolve('../loaders/sass'),
           options: {}
+        },
+        {
+          use: require.resolve('../loaders/file'),
+          options: {}
+        }
+      ]
+    },
+    {
+      test: /\.wxml$/,
+      loaders: [
+        {
+          use: require.resolve('../loaders/file'),
+          options: {}
         }
       ]
     }
   ],
   plugins: [
     new CleanerPlugin(),
-    new CopyPlugin(),
     new SpritesmithPlugin(),
     new StaticServerPlugin()
   ]

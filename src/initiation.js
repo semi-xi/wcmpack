@@ -13,7 +13,7 @@ export default class Initiation {
     options = this.options.connect(options)
 
     let { srcDir } = options
-    let files = find(srcDir, /\.(json|wxml)$/)
+    let files = find(srcDir, /\.(json)$/)
     return this.copy(files, options)
   }
 
@@ -23,7 +23,7 @@ export default class Initiation {
     let tasks = files.map((file) => {
       this.assets.add(file)
 
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         let destination = this.assets.output(file)
         fs.ensureFileSync(destination)
 
@@ -33,6 +33,11 @@ export default class Initiation {
         let size = 0
         readStream.on('data', (buffer) => {
           size += buffer.length
+        })
+
+        readStream.on('error', (error) => {
+          reject(error)
+          readStream.end()
         })
 
         readStream.on('end', () => {

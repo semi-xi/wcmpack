@@ -10,21 +10,22 @@ const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
 
 export default class SpriteSmithPlugin {
   constructor (options = {}) {
-    let template = 'sprites/sprite.scss.template.handlebars'
+    let directory = path.join(process.cwd(), 'src/sprites')
     let imageFile = 'sprites/sprite.png'
     let styleFile = 'sprites/sprite.scss'
-    this.options = Object.assign({ template, imageFile, styleFile }, options)
+    let template = 'sprite.scss.template.handlebars'
+    this.options = Object.assign({ imageFile, styleFile, directory, template }, options)
   }
 
   initiate (optionManager) {
     let options = optionManager.connect(this.options)
 
     let {
-      srcDir, staticDir, tmplDir, pubPath,
-      template, imageFile, styleFile
+      staticDir, tmplDir, pubPath,
+      template, imageFile, styleFile, directory
     } = options
 
-    template = path.join(srcDir, template)
+    template = path.join(directory, template)
     if (!(template && fs.existsSync(template))) {
       return Promise.reject(new Error(`Template ${template} is not found or not be provied`))
     }
@@ -33,7 +34,7 @@ export default class SpriteSmithPlugin {
     SpritesmithTemplate.addHandlebarsTemplate('spriteScssTemplate', source)
 
     return new Promise((resolve, reject) => {
-      let files = find(srcDir, /\.(png|jpe?g)$/)
+      let files = find(directory, /\.(png|jpe?g)$/)
       Spritesmith.run({ src: files }, function (error, result) {
         if (error) {
           if (error instanceof Error || error instanceof TypeError) {

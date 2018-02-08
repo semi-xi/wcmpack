@@ -35,6 +35,11 @@ export default class Parser {
         size += buffer.byteLength
       })
 
+      readStream.on('error', (error) => {
+        reject(error)
+        readStream.end()
+      })
+
       readStream.on('end', () => {
         let stats = {
           assets: destination,

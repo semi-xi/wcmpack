@@ -11,6 +11,7 @@ export default class ParserTransform extends Transform {
     this._options = options
     this._parser = parser
     this._taskManager = taskManager
+    this._printer = parser.printer
   }
 
   _transform (buffer, encodeType, callback) {

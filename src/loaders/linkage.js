@@ -6,6 +6,8 @@ import { resolveDependencies } from '../share/resolveDependencies'
 import { nodeModuleName } from '../share/configuration'
 
 export default function ReuqireTransform (source, options, transformer) {
+  source = source.toString()
+
   let file = transformer._file
   let parser = transformer._parser
   let taskManager = transformer._taskManager
