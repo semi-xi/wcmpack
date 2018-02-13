@@ -1,6 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
-import { Readable } from 'stream'
+import { PassThrough } from 'stream'
 import OptionManager from './optionManager'
 
 export default class Chunk {
@@ -15,9 +15,8 @@ export default class Chunk {
       }
 
       let buffer = Buffer.from(options.content, 'utf8')
-      this.stream = new Readable()
-      this.stream.push(buffer)
-      this.stream.push(null)
+      this.stream = new PassThrough()
+      this.stream.end(buffer)
     } else {
       this.stream = fs.createReadStream(file)
     }
@@ -124,15 +123,15 @@ export default class Chunk {
     }
 
     this.file = undefined
+    this.destination = undefined
     this.options = undefined
-    this.rule = undefined
-    this.parser = undefined
     this.stream = undefined
+    this.globalOptions = undefined
 
     delete this.file
+    delete this.destination
     delete this.options
-    delete this.rule
-    delete this.parser
     delete this.stream
+    delete this.globalOptions
   }
 }

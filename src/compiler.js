@@ -14,8 +14,6 @@ export default class Compiler {
   }
 
   transform (options = {}) {
-    this.assets.reset()
-
     options = this.options.connect(options)
     let { srcDir, rules } = options
 

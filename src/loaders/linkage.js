@@ -2,7 +2,6 @@ import path from 'path'
 import forEach from 'lodash/forEach'
 import { findForMatchRules } from '../share/finder'
 import { resolveDependencies } from '../share/resolveDependencies'
-import { nodeModuleName } from '../share/configuration'
 import { Transformer } from './transformer'
 
 export class LinkageTransformer extends Transformer {
@@ -27,7 +26,7 @@ export class LinkageTransformer extends Transformer {
         relativePath = `./${relativePath}`
       }
 
-      relativePath = relativePath.replace('node_modules', nodeModuleName)
+      relativePath = relativePath.replace('node_modules', options.npmDir)
       source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
 
       let rulesToFile = findForMatchRules(dependency, options.rules)

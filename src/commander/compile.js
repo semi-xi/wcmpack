@@ -83,7 +83,9 @@ export class CompileTask {
         }
 
         printer.trace(`Source file ${colors.bold(path.replace(rootDir, ''))} has been changed, compiling...`)
-        callbackifyTransform(compileOptions, handleCallbackTransform)
+
+        assets.reset()
+        handleTransform()
       }
 
       let handleFileUnlink = (path) => {
@@ -99,7 +101,9 @@ export class CompileTask {
         this.running = true
 
         printer.trace(`Source file ${path} has been changed, compiling...`)
-        callbackifyTransform(compileOptions, handleCallbackTransform)
+
+        assets.reset()
+        handleTransform()
       }
 
       let watcher = chokidar.watch(srcDir)
@@ -163,14 +167,11 @@ export class CompileTask {
 
     isWatchFiles && handleWatchFiles()
 
-    series(beforeTasks, (error) => {
-      if (error) {
-        this.caughtException(error)
-        return
-      }
-
+    let handleTransform = () => {
       series(tasks, handleCallbackTransform)
-    })
+    }
+
+    series(beforeTasks, (error) => error ? this.caughtException(error) : handleTransform())
   }
 
   caughtException (error) {

@@ -17,11 +17,11 @@ export default class SpriteSmithPlugin {
     this.options = Object.assign({ imageFile, styleFile, directory, template }, options)
   }
 
-  beforeInitiate (assets, optionManager, printer) {
+  initiate (assets, optionManager, printer) {
     let options = optionManager.connect(this.options)
 
     let {
-      srcDir, tmplDir, pubPath,
+      srcDir, tmplDir, staticDir, pubPath,
       template, imageFile, styleFile, directory
     } = options
 
@@ -69,10 +69,11 @@ export default class SpriteSmithPlugin {
         fs.ensureFileSync(StyleFile)
         fs.writeFileSync(StyleFile, source)
 
-        let { chunk } = assets.add(imageFile, {
+        let ImageFile = path.join(staticDir, imageFile)
+        let { chunk } = assets.add(ImageFile, {
           type: 'static',
           content: buffer,
-          destination: imageFile
+          destination: ImageFile
         })
 
         resolve([chunk])
