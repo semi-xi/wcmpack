@@ -1,40 +1,47 @@
 import path from 'path'
 import forEach from 'lodash/forEach'
-import Parser from '../parser'
 import { findForMatchRules } from '../share/finder'
 import { resolveDependencies } from '../share/resolveDependencies'
 import { nodeModuleName } from '../share/configuration'
+import { Transformer } from './transformer'
 
-export default function ReuqireTransform (source, options, transformer) {
-  source = source.toString()
+export class LinkageTransformer extends Transformer {
+  _flush (done) {
+    let {
+      _source: source,
+      _options: options,
+      _file: file,
+      _assets: assets,
+      _dependencies: dependenciesTasks,
+      _parser: parser
+    } = this
 
-  let file = transformer._file
-  let parser = transformer._parser
-  let taskManager = transformer._taskManager
+    let relativeTo = path.dirname(file)
+    let dependencies = resolveDependencies(source, file, relativeTo, options)
+    let destination = assets.output(file)
+    let directory = path.dirname(destination)
 
-  let relativeTo = path.dirname(file)
-  let dependencies = resolveDependencies(source, file, relativeTo, options)
+    forEach(dependencies, ({ dependency, destination: file, required }) => {
+      let relativePath = path.relative(directory, file)
+      if (relativePath.charAt(0) !== '.') {
+        relativePath = `./${relativePath}`
+      }
 
-  let destination = parser.assets.output(file)
-  let directory = path.dirname(destination)
+      relativePath = relativePath.replace('node_modules', nodeModuleName)
+      source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
 
-  forEach(dependencies, ({ dependency, destination: file, required }) => {
-    let relativePath = path.relative(directory, file)
-    if (relativePath.charAt(0) !== '.') {
-      relativePath = `./${relativePath}`
-    }
-
-    relativePath = relativePath.replace('node_modules', nodeModuleName)
-    source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
-
-    let subParser = new Parser(parser.assets, parser.options, parser.printer)
-    let rulesToFile = findForMatchRules(dependency, options.rules)
-
-    forEach(rulesToFile, (rules, file) => {
-      let task = subParser.parse(file, rules[0], options)
-      taskManager.addTask(task)
+      let rulesToFile = findForMatchRules(dependency, options.rules)
+      forEach(rulesToFile, (rules, file) => {
+        let task = parser.parse(file, rules[0], options)
+        dependenciesTasks.push(task)
+      })
     })
-  })
 
-  return source
+    this.push(source)
+    done()
+  }
+}
+
+export default function transform (stream, ...args) {
+  return stream.pipe(new LinkageTransformer(...args))
 }

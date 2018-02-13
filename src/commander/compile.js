@@ -38,15 +38,33 @@ export class CompileTask {
     this.running = true
 
     let { watch: isWatchFiles } = options
-    let { optionManager, printer, compiler, initiation, compileOptions } = this
+    let { optionManager, assets, printer, compiler, initiation, compileOptions } = this
     let { rootDir, srcDir, plugins } = compileOptions
 
-    let handleCallbackTransform = (error, stats) => {
-      stats = flatten(stats).filter((stats) => stats)
-      stats.spendTime = Date.now() - startTime
-      error ? this.caughtException(error) : this.printStats(stats, compileOptions, isWatchFiles)
+    let handleWriteFiles = (chunks) => {
+      return chunks.map((chunk) => chunk.save())
+    }
 
-      this.running = false
+    let handleCallbackTransform = (error, chunks) => {
+      if (error) {
+        this.caughtException(error)
+        return
+      }
+
+      chunks = flatten(chunks).filter((chunks) => chunks)
+
+      Promise
+        .all(handleWriteFiles(chunks))
+        .then((stats) => {
+          stats.spendTime = Date.now() - startTime
+          this.printStats(stats, compileOptions, isWatchFiles)
+
+          this.running = false
+        })
+        .catch((error) => {
+          this.caughtException(error)
+          this.running = false
+        })
     }
 
     let handleWatchFiles = () => {
@@ -114,17 +132,20 @@ export class CompileTask {
 
     plugins.forEach((plugin) => {
       if (typeof plugin.beforeInitiate === 'function') {
-        let callbackifyBeforeInitiate = callbackify(plugin.beforeInitiate.bind(plugin, optionManager, printer))
+        let fn = plugin.beforeInitiate.bind(plugin, assets, optionManager, printer)
+        let callbackifyBeforeInitiate = callbackify(fn)
         beforeTasks.push(callbackifyBeforeInitiate)
       }
 
       if (typeof plugin.initiate === 'function') {
-        let callbackifyInitiate = callbackify(plugin.initiate.bind(plugin, optionManager, printer))
+        let fn = plugin.initiate.bind(plugin, assets, optionManager, printer)
+        let callbackifyInitiate = callbackify(fn)
         tasks.push(callbackifyInitiate)
       }
 
       if (typeof plugin.async === 'function') {
-        let callbackifyAsync = callbackify(plugin.async.bind(plugin, optionManager, printer))
+        let fn = plugin.async.bind(plugin, assets, optionManager, printer)
+        let callbackifyAsync = callbackify(fn)
         asyncTasks.push(callbackifyAsync)
       }
     })
@@ -136,7 +157,7 @@ export class CompileTask {
 
     parallel(asyncTasks, (error) => {
       if (error) {
-        throw error
+        this.caughtException(error)
       }
     })
 
@@ -144,12 +165,11 @@ export class CompileTask {
 
     series(beforeTasks, (error) => {
       if (error) {
-        throw error
+        this.caughtException(error)
+        return
       }
 
-      series(tasks, (error, stats) => {
-        handleCallbackTransform(error, stats)
-      })
+      series(tasks, handleCallbackTransform)
     })
   }
 

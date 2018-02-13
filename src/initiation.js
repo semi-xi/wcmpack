@@ -1,6 +1,6 @@
-import fs from 'fs-extra'
 import { find } from './share/finder'
 import Assets from './assets'
+import Chunk from './chunk'
 import OptionManager from './optionManager'
 
 export default class Initiation {
@@ -20,38 +20,11 @@ export default class Initiation {
   copy (files, options = {}) {
     options = this.options.connect(options)
 
-    let tasks = files.map((file) => {
+    let chunks = files.map((file) => {
       this.assets.add(file)
-
-      return new Promise((resolve, reject) => {
-        let readStream = fs.createReadStream(file)
-        let size = 0
-
-        readStream.on('data', (buffer) => {
-          size += buffer.length
-        })
-
-        readStream.on('error', (error) => {
-          reject(error)
-          readStream.end()
-        })
-
-        let destination = this.assets.output(file)
-        fs.ensureFileSync(destination)
-        let writeStream = fs.createWriteStream(destination)
-        writeStream.on('finish', () => {
-          let stats = {
-            assets: destination,
-            size: size
-          }
-
-          resolve(stats)
-        })
-
-        readStream.pipe(writeStream)
-      })
+      return new Chunk(file, options)
     })
 
-    return Promise.all(tasks)
+    return Promise.all(chunks)
   }
 }

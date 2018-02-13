@@ -1,6 +1,5 @@
 import fs from 'fs-extra'
 import path from 'path'
-import { promisify } from 'util'
 import forEach from 'lodash/forEach'
 import trimStart from 'lodash/trimStart'
 import trimEnd from 'lodash/trimEnd'
@@ -9,26 +8,26 @@ import SpritesmithTemplate from 'spritesheet-templates'
 import { find } from '../share/finder'
 import { gen } from '../share/hash'
 
-const promisifyWriteFile = promisify(fs.writeFile.bind(fs))
-
 export default class SpriteSmithPlugin {
   constructor (options = {}) {
-    let directory = path.join(process.cwd(), 'src/sprites')
+    let directory = 'sprites'
     let imageFile = 'sprites/sprite.png'
     let styleFile = 'sprites/sprite.scss'
     let template = 'sprite.scss.template.handlebars'
     this.options = Object.assign({ imageFile, styleFile, directory, template }, options)
   }
 
-  initiate (optionManager) {
+  beforeInitiate (assets, optionManager, printer) {
     let options = optionManager.connect(this.options)
 
     let {
-      staticDir, tmplDir, pubPath,
+      srcDir, tmplDir, pubPath,
       template, imageFile, styleFile, directory
     } = options
 
+    directory = path.join(srcDir, directory)
     template = path.join(directory, template)
+
     if (!(template && fs.existsSync(template))) {
       return Promise.reject(new Error(`Template ${template} is not found or not be provied`))
     }
@@ -62,38 +61,21 @@ export default class SpriteSmithPlugin {
         let basename = filename.replace(extname, '')
         imageFile = path.join(imageFile.replace(filename, ''), basename + '.' + gen(buffer) + extname)
 
-        let _imageFile = path.join(staticDir, imageFile)
-        let _styleFile = path.join(tmplDir, styleFile)
-
         let image = trimEnd(pubPath, '/') + '/' + trimStart(imageFile, '/')
         let spritesheet = Object.assign({ image }, properties)
         let source = SpritesmithTemplate({ sprites, spritesheet }, { format: 'spriteScssTemplate' })
 
-        let imageDirectory = path.dirname(_imageFile)
-        let styleDirectory = path.dirname(_styleFile)
+        let StyleFile = path.join(tmplDir, styleFile)
+        fs.ensureFileSync(StyleFile)
+        fs.writeFileSync(StyleFile, source)
 
-        fs.ensureDirSync(imageDirectory)
-        fs.ensureDirSync(styleDirectory)
+        let { chunk } = assets.add(imageFile, {
+          type: 'static',
+          content: buffer,
+          destination: imageFile
+        })
 
-        Promise.all([
-          promisifyWriteFile(_imageFile, buffer),
-          promisifyWriteFile(_styleFile, source)
-        ])
-          .then(() => {
-            let stats = [
-              {
-                assets: _imageFile,
-                size: source.length
-              },
-              {
-                assets: _styleFile,
-                size: buffer.byteLength
-              }
-            ]
-
-            resolve(stats)
-          })
-          .catch(reject)
+        resolve([chunk])
       })
     })
   }

@@ -1,9 +1,9 @@
-import fs from 'fs-extra'
+import { callbackify } from 'util'
+import map from 'lodash/map'
+import series from 'async/series'
 import Assets from './assets'
 import OptionManager from './optionManager'
 import Printer from './printer'
-import ParserTransform from './parserTransform'
-import TaskManager from './taskManager'
 
 export default class Parser {
   constructor (assets, options, printer) {
@@ -13,44 +13,33 @@ export default class Parser {
   }
 
   parse (file, rule, options = {}) {
-    if (this.assets.exists(file)) {
+    let { assets } = this
+    if (assets.exists(file)) {
       return Promise.resolve(null)
     }
 
-    this.assets.add(file, rule)
+    let { chunk } = assets.add(file, Object.assign({ rule }, options))
 
     return new Promise((resolve, reject) => {
-      let taskManager = new TaskManager()
-      let readStream = fs.createReadStream(file)
-      let size = 0
-      readStream.on('data', (buffer) => {
-        size += buffer.byteLength
+      options = this.options.connect(options)
+
+      let dependencies = []
+      let tasks = map(rule.loaders, (loader) => {
+        let fn = chunk.pipe.bind(chunk, loader, assets, dependencies, this)
+        return callbackify(fn)
       })
 
-      readStream.on('error', (error) => {
-        reject(error)
-        readStream.end()
-      })
-
-      let transStream = new ParserTransform(file, rule, options, taskManager, this)
-      readStream = readStream.pipe(transStream)
-
-      let destination = this.assets.output(file)
-      fs.ensureFileSync(destination)
-      let writeStream = fs.createWriteStream(destination)
-      writeStream.on('finish', () => {
-        let stats = {
-          assets: destination,
-          size: size
+      series(tasks, (error) => {
+        if (error) {
+          reject(error)
+          return
         }
 
-        taskManager
-          .execute()
-          .then((allStats) => resolve(allStats.concat(stats)))
+        Promise
+          .all(dependencies)
+          .then((subChunks) => resolve([chunk].concat(subChunks)))
           .catch(reject)
       })
-
-      readStream.pipe(writeStream)
     })
   }
 }

@@ -1,4 +1,5 @@
 import { renderSync } from 'node-sass'
+import { Transformer } from './transformer'
 
 const defaultSettings = {
   outputStyle: 'compressed',
@@ -6,13 +7,20 @@ const defaultSettings = {
   sourceMap: false
 }
 
-export default function SassTransform (source, options, transformer) {
-  source = source.toString()
+export class SassTransformer extends Transformer {
+  _flush (done) {
+    let file = this._file
+    let options = this._options
+    let data = { file, data: this._source }
 
-  let file = transformer._file
-  let data = { file, data: source }
+    options = Object.assign({}, defaultSettings, options, data)
 
-  options = Object.assign({}, defaultSettings, options, data)
-  let { css: code } = renderSync(options)
-  return code
+    let { css: code } = renderSync(options)
+    this.push(code)
+    done()
+  }
+}
+
+export default function transform (stream, ...args) {
+  return stream.pipe(new SassTransformer(...args))
 }

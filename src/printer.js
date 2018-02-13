@@ -1,3 +1,4 @@
+import path from 'path'
 import colors from 'colors'
 import columnify from 'columnify'
 import OptionManager from './optionManager'
@@ -73,10 +74,19 @@ export default class Printer {
       },
       config: {
         assets: {
-          maxWidth: 40,
+          maxWidth: 80,
           align: 'right',
           dataTransform (file) {
-            return colors.bold(colors.green(file))
+            let dirname = path.dirname(file)
+            let filename = path.basename(file)
+            if (file.length > this.maxWidth) {
+              let length = this.maxWidth - filename.length
+              if (length > 0) {
+                dirname = dirname.substr(0, length - 3) + '..'
+              }
+            }
+
+            return colors.bold(colors.green(path.join(dirname, filename)))
           }
         },
         size: {

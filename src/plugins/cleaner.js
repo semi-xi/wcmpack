@@ -8,7 +8,7 @@ export default class CleanerPlugin {
     this.options = Object.assign({}, options)
   }
 
-  beforeInitiate (optionManager, printer) {
+  beforeInitiate (assets, optionManager, printer) {
     let options = optionManager.connect(this.options)
     let { outDir, staticDir, tmplDir } = options
 

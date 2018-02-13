@@ -49,7 +49,11 @@ export let HTMLRule = {
   ]
 }
 
-export let Rules = [JSRule, CSSRule, HTMLRule]
+export let WXSRule = {
+  test: /\.wxs$/
+}
+
+export let Rules = [JSRule, CSSRule, HTMLRule, WXSRule]
 
 export let Plugins = [
   new CleanerPlugin(),

@@ -23,6 +23,8 @@ export default class Compiler {
     let rulesToFile = findForMatchRules(srcDir, rules)
     let tasks = map(rulesToFile, (rules, file) => parser.parse(file, rules[0], options))
 
-    return Promise.all(tasks).then((stats) => flattenDeep(stats).filter((stats) => stats))
+    return Promise
+      .all(tasks)
+      .then((chunks) => flattenDeep(chunks).filter((chunks) => chunks))
   }
 }
