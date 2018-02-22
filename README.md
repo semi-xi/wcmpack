@@ -30,6 +30,7 @@
   - 样式使用百分比, 自带自适应 (默认)
   - 自定义样式配置可在 `root/src/sprites/sprite.scss.template.handlebars` 创建 (自定义修改配置自己分配, 暂时只支持 handlebars 模板)
   - 注意精灵图样式并不会自动导入, 在全局样式中必须导入 `@import "../.temporary/sprites/sprite";`
+  - 配置必须自己写入文件夹中, 参考下面例子
 - 支持 自动 copy JSON 文件
 - 支持 静态服务器 (自带, 默认仅在开发环境使用, [详情见](https://github.com/DavidKk/wcmpack/tree/master/src/plugins/staticServer.js))
   - 机器若与手机在同一内网环境中则可以访问, 手机无需做任何代理
@@ -64,17 +65,147 @@ wcmpack --help
 - 注意 Component 不读取公共样式; 因此精灵图样式, 全局样式等可能需要各自导入各自自定义组件中 (并不建议)
 
 
-## 目录结构
+## Project
 
 默认路径, 可修改, 详情见配置
 
 ```
 /src
   /sprites
+    /sprite.scss.template.handlebars
   /... others directories
   /app.js
   /app.json
   /app.scss
   /project.config.json
 
+```
+
+## Sprites Style Template
+
+`sprite.scss.template.handlebars` 文件 DEMO
+
+```
+{
+  /**
+   * Default options
+   */
+  'functions': true,
+  'variableNameTransforms': ['dasherize']
+}
+
+{{#block "sprites-comment"}}
+{{/block}}
+
+{{#block "sprites"}}
+  {{#each sprites}}
+    ${{strings.name_name}}: 'sp-{{name}}';
+    ${{strings.name_x}}: {{px.x}};
+    ${{strings.name_y}}: {{px.y}};
+    ${{strings.name_offset_x}}: {{px.offset_x}};
+    ${{strings.name_offset_y}}: {{px.offset_y}};
+    ${{strings.name_width}}: {{px.width}};
+    ${{strings.name_height}}: {{px.height}};
+    ${{strings.name_total_width}}: {{px.total_width}};
+    ${{strings.name_total_height}}: {{px.total_height}};
+    ${{strings.name_image}}: '{{{escaped_image}}}';
+    ${{strings.name}}: ({{px.x}}, {{px.y}}, {{px.offset_x}}, {{px.offset_y}}, {{px.width}}, {{px.height}}, {{px.total_width}}, {{px.total_height}}, '{{{escaped_image}}}', '{{name}}', );
+  {{/each}}
+{{/block}}
+
+{{#block "spritesheet"}}
+  ${{spritesheet_info.strings.name_width}}: {{spritesheet.px.width}};
+  ${{spritesheet_info.strings.name_height}}: {{spritesheet.px.height}};
+  ${{spritesheet_info.strings.name_image}}: '{{{spritesheet.escaped_image}}}';
+  ${{spritesheet_info.strings.name_sprites}}: ({{#each sprites}}${{strings.name}}, {{/each}});
+  ${{spritesheet_info.strings.name}}: ({{spritesheet.px.width}}, {{spritesheet.px.height}}, '{{{spritesheet.escaped_image}}}', ${{spritesheet_info.strings.name_sprites}}, );
+{{/block}}
+
+{{#block "sprite-functions-comment"}}
+  {{#if options.functions}}
+  {{/if}}
+{{/block}}
+
+{{#block "sprite-functions"}}
+  {{#if options.functions}}
+    @mixin sprite-position($sprite) {
+      $sprite-offset-x: nth($sprite, 3);
+      $sprite-offset-y: nth($sprite, 4);
+      background-position: $sprite-offset-x $sprite-offset-y;
+    }
+
+    @mixin sprite-image($sprite) {
+      $sprite-image: nth($sprite, 9);
+      background-image: url(#{$sprite-image});
+    }
+
+    @mixin sprite($sprite) {
+      $sprite-offset-x: nth($sprite, 3);
+      $sprite-offset-y: nth($sprite, 4);
+      $sprite-width: nth($sprite, 5);
+      $sprite-height: nth($sprite, 6);
+      $sprite-total-width: nth($sprite, 7);
+      $sprite-total-height: nth($sprite, 8);
+      $sprite-image: nth($sprite, 9);
+
+      $sprite-rw: $sprite-total-width / $sprite-width;
+      $sprite-rh: $sprite-total-height / $sprite-height;
+      $sprite-rx: $sprite-offset-x / ($sprite-total-width - $sprite-width);
+      $sprite-ry: $sprite-offset-y / ($sprite-total-height - $sprite-height);
+
+      @if $sprite-rw == NaN or $sprite-rw == Infinity {
+        $sprite-rx: 0;
+      }
+
+      @if $sprite-rh == NaN or $sprite-rh == Infinity {
+        $sprite-rx: 0;
+      }
+
+      @if $sprite-rx == NaN or $sprite-rx == Infinity {
+        $sprite-rx: strip-unit($sprite-offset-x);
+      }
+
+      @if $sprite-ry == NaN or $sprite-ry == Infinity {
+        $sprite-ry: strip-unit($sprite-offset-y);
+      }
+
+      $sprite-rx: abs($sprite-rx);
+      $sprite-ry: abs($sprite-ry);
+
+      background-image: url(#{$sprite-image});
+      background-repeat: no-repeat;
+      background-size: percentage($sprite-rw) percentage($sprite-rh);
+      background-position: percentage($sprite-rx) percentage($sprite-ry);
+    }
+  {{/if}}
+{{/block}}
+
+{{#block "spritesheet-functions-comment"}}
+  {{#if options.functions}}
+  {{/if}}
+{{/block}}
+
+{{#block "spritesheet-functions"}}
+  {{#if options.functions}}
+    @mixin sprites($sprites) {
+      @each $sprite in $sprites {
+        $sprite-name: nth($sprite, 10);
+
+        .sp.sp-#{$sprite-name} {
+          display: inline-block;
+          width: nth($sprite, 5) / 2;
+          height: nth($sprite, 6) / 2;
+
+          &:before {
+            content: "";
+            display: block;
+            width: 100%;
+            height: 100%;
+            @include sprite($sprite);
+          }
+        }
+      }
+    }
+  {{/if}}
+{{/block}}
 ```
