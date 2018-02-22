@@ -1,46 +1,28 @@
-import chokidar from 'chokidar'
-import { callbackify } from 'util'
-import forEach from 'lodash/forEach'
+import map from 'lodash/map'
 import flattenDeep from 'lodash/flattenDeep'
-import { parse } from './parser'
-import { findForMatch } from './share/finder'
-import { srcDir } from './share/configuration'
+import Assets from './assets'
+import OptionManager from './optionManager'
+import Parser from './parser'
+import Printer from './printer'
+import { findForMatchRules } from './share/finder'
 
-export const transform = function (directory, options = {}) {
-  let startTime = Date.now()
-  let files = findForMatch(directory, options.rules)
-  let tasks = []
-  forEach(files, (rule, file) => tasks.push(parse(file, rule[0], options)))
-  return Promise.all(tasks).then((result) => {
-    let stats = flattenDeep(result).filter((result) => result)
-    stats.spendTime = Date.now() - startTime
-    return stats
-  })
-}
-
-export const watchTransform = function (options = {}, callback) {
-  if (typeof callback !== 'function') {
-    throw new TypeError('Callback is not a function or not provided')
+export default class Compiler {
+  constructor (assets, options, printer) {
+    this.options = options instanceof OptionManager ? options : new OptionManager(options)
+    this.assets = assets instanceof Assets ? assets : new Assets(this.options)
+    this.printer = printer instanceof Printer ? printer : new Printer(this.options)
   }
 
-  let handleTransform = callbackify(transform.bind(null, options))
+  transform (options = {}) {
+    options = this.options.connect(options)
+    let { srcDir, rules } = options
 
-  let watcher = chokidar.watch(srcDir)
-  watcher.on('change', handleTransform)
-  watcher.on('unlink', handleTransform)
+    let parser = new Parser(this.assets, this.options, this.printer)
+    let rulesToFile = findForMatchRules(srcDir, rules)
+    let tasks = map(rulesToFile, (rules, file) => parser.parse(file, rules[0], options))
 
-  let handleProcessSigint = process.exit.bind(process)
-
-  let handleProcessExit = function () {
-    watcher && watcher.close()
-
-    process.removeListener('exit', handleProcessExit)
-    process.removeListener('SIGINT', handleProcessSigint)
-
-    handleProcessExit = undefined
-    handleProcessSigint = undefined
+    return Promise
+      .all(tasks)
+      .then((chunks) => flattenDeep(chunks).filter((chunks) => chunks))
   }
-
-  process.on('exit', handleProcessExit)
-  process.on('SIGINT', handleProcessSigint)
 }

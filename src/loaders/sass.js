@@ -1,30 +1,26 @@
-import { Transform } from 'stream'
 import { renderSync } from 'node-sass'
+import { Transformer } from './transformer'
 
-export default class SassParser extends Transform {
-  constructor (options = {}) {
-    super()
+const defaultSettings = {
+  outputStyle: 'compressed',
+  sourceComments: false,
+  sourceMap: false
+}
 
-    this._file = options.file
-    this._source = ''
-    this._settings = Object.assign({
-      outputStyle: 'compressed',
-      sourceComments: false,
-      sourceMap: false
-    }, options)
-  }
-
-  _transform (buffer, encodeType, callback) {
-    this._source += buffer
-    callback()
-  }
-
-  _flush (callback) {
+export class SassTransformer extends Transformer {
+  _flush (done) {
     let file = this._file
-    let data = this._source
-    let options = Object.assign({}, this._settings, { file, data })
+    let options = this._options
+    let data = { file, data: this._source }
+
+    options = Object.assign({}, defaultSettings, options, data)
+
     let { css: code } = renderSync(options)
     this.push(code)
-    callback()
+    done()
   }
+}
+
+export default function transform (stream, ...args) {
+  return stream.pipe(new SassTransformer(...args))
 }

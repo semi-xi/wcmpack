@@ -1,26 +1,23 @@
-import { Transform } from 'stream'
 import UglifyJS from 'uglify-js'
+import { Transformer } from './transformer'
 
-export default class UglifyParser extends Transform {
-  constructor (options = {}) {
-    super()
-
-    this._source = ''
-    this._settings = options
-  }
-
-  _transform (buffer, encodeType, callback) {
-    this._source += buffer
-    callback()
-  }
-
-  _flush (callback) {
+export class UglifyTransformer extends Transformer {
+  _flush (done) {
     let { error, code } = UglifyJS.minify(this._source)
+
     if (error) {
-      throw error
+      if (error instanceof Error || error instanceof TypeError) {
+        throw error
+      }
+
+      throw new Error(error)
     }
 
     this.push(code)
-    callback()
+    done()
   }
+}
+
+export default function transform (stream, ...args) {
+  return stream.pipe(new UglifyTransformer(...args))
 }

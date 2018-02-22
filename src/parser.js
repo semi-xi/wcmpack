@@ -1,78 +1,45 @@
-import fs from 'fs-extra'
-import path from 'path'
-import { promisify } from 'util'
-import forEach from 'lodash/forEach'
-import waterfall from 'async/waterfall'
-import { rootDir, srcDir, distDir, nodeModuleName } from './share/configuration'
+import map from 'lodash/map'
+import series from 'async/series'
+import asyncify from 'async/asyncify'
+import Assets from './assets'
+import OptionManager from './optionManager'
+import Printer from './printer'
 
-const existsFiles = []
-const promisifiedWaterfall = promisify(waterfall)
-
-export const parse = function (file, rule, options = {}) {
-  if (existsFiles.indexOf(file) !== -1) {
-    return Promise.resolve(null)
+export default class Parser {
+  constructor (assets, options, printer) {
+    this.options = options instanceof OptionManager ? options : new OptionManager(options)
+    this.assets = assets instanceof Assets ? assets : new Assets(this.options)
+    this.printer = printer instanceof Printer ? printer : new Printer(this.options)
   }
 
-  existsFiles.push(file)
-
-  let loaders = Array.isArray(rule.loaders) ? rule.loaders : []
-  let plugins = Array.isArray(rule.plugins) ? rule.plugins : []
-
-  return new Promise((resolve, reject) => {
-    let stream = fs.createReadStream(file)
-    forEach(loaders, ({ use: loader, options }) => {
-      loader = require(loader)
-
-      let Loader = loader.default || loader
-      options.file = file
-      stream = stream.pipe(new Loader(options))
-    })
-
-    let relativePath = ''
-    if (file.search(srcDir) !== -1) {
-      relativePath = path.dirname(file).replace(srcDir, '')
-    } else if (/[\\/]node_modules[\\/]/.test(file)) {
-      relativePath = path.dirname(file).replace(path.join(rootDir, 'node_modules'), nodeModuleName)
-    } else {
-      relativePath = path.dirname(file).replace(rootDir, '')
+  parse (file, rule, options = {}) {
+    let { assets } = this
+    if (assets.exists(file)) {
+      return Promise.resolve(null)
     }
 
-    let filename = path.basename(file)
-    if (rule.extname) {
-      let extname = path.extname(file)
-      filename = filename.replace(extname, rule.extname)
-    }
+    let { chunk } = assets.add(file, Object.assign({ rule }, options))
 
-    let destination = path.join(distDir, relativePath, filename)
-    let buffers = []
+    return new Promise((resolve, reject) => {
+      options = this.options.connect(options)
 
-    stream.on('data', (buffer) => buffers.push(buffer))
-    stream.on('end', () => {
-      let source = Buffer.concat(buffers)
-      let assets = { file, source, rule, config: options }
-
-      let tasks = []
-      forEach(plugins, ({ use: plugin, options }) => {
-        plugin = require(plugin)
-
-        let Plugin = plugin.default || plugin
-        let pluginTask = Plugin(assets, options)
-        tasks.push(pluginTask)
+      let dependencies = []
+      let tasks = map(rule.loaders, (loader) => {
+        let fn = chunk.pipe.bind(chunk, loader, assets, dependencies, this)
+        return asyncify(fn)
       })
 
-      source = assets.source
-      let stats = {
-        assets: destination,
-        size: source.length
-      }
+      series(tasks, (error) => {
+        if (error) {
+          reject(error)
+          return
+        }
 
-      tasks.push(promisifiedWaterfall([
-        fs.ensureFile.bind(fs, destination),
-        fs.writeFile.bind(fs, destination, source),
-        (callback) => callback(null, stats)
-      ]))
-
-      Promise.all(tasks).then(resolve).catch(reject)
+        Promise
+          .all(dependencies)
+          .then((subChunks) => resolve([chunk].concat(subChunks)))
+          .catch(reject)
+      })
     })
-  })
+  }
 }
