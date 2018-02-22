@@ -1,9 +1,9 @@
 {
-  "name": "wcapack",
+  "name": "wcmpack",
   "version": "1.0.0",
   "main": "./libs/index.js",
   "license": "MIT",
-  "bin": "./bin/wcapack",
+  "bin": "./bin/cli",
   "lint-staged": {
     "*.js": [
       "npm run lint",
@@ -26,7 +26,6 @@
     "chokidar": "^2.0.0",
     "colors": "^1.1.2",
     "columnify": "^1.5.4",
-    "crypto": "^1.0.1",
     "finalhandler": "^1.1.0",
     "fs-extra": "^5.0.0",
     "local-ip": "^2.0.0",

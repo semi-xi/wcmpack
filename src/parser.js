@@ -1,6 +1,6 @@
-import { callbackify } from 'util'
 import map from 'lodash/map'
 import series from 'async/series'
+import asyncify from 'async/asyncify'
 import Assets from './assets'
 import OptionManager from './optionManager'
 import Printer from './printer'
@@ -26,7 +26,7 @@ export default class Parser {
       let dependencies = []
       let tasks = map(rule.loaders, (loader) => {
         let fn = chunk.pipe.bind(chunk, loader, assets, dependencies, this)
-        return callbackify(fn)
+        return asyncify(fn)
       })
 
       series(tasks, (error) => {

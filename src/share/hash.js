@@ -1,8 +1,11 @@
 import fs from 'fs-extra'
 import crypto from 'crypto'
 
-export const gen = function (source) {
-  return crypto.createHash('md5').update(source).digest('hex')
+export const gen = function (source, secret = 'wcmpack') {
+  return crypto
+    .createHash('sha256')
+    .update(source)
+    .digest('hex')
 }
 
 export const genFileSync = function (file) {

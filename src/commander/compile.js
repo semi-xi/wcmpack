@@ -1,4 +1,3 @@
-import { callbackify } from 'util'
 import colors from 'colors'
 import program from 'commander'
 import chokidar from 'chokidar'
@@ -6,6 +5,7 @@ import map from 'lodash/map'
 import flatten from 'lodash/flatten'
 import parallel from 'async/parallel'
 import series from 'async/series'
+import asyncify from 'async/asyncify'
 import OptionManager from '../optionManager'
 import Assets from '../assets'
 import Initiation from '../initiation'
@@ -78,7 +78,12 @@ export class CompileTask {
 
         if (/\.(json)$/.test(path)) {
           printer.trace(`Assets file ${colors.bold(path.replace(rootDir, ''))} has been changed, copying...`)
-          callbackifyCopyFile([path], compileOptions, handleCallbackTransform)
+
+          initiation
+            .copy([path], compileOptions)
+            .then(handleCallbackTransform.bind(null))
+            .catch(handleCallbackTransform)
+
           return
         }
 
@@ -126,9 +131,8 @@ export class CompileTask {
       process.on('SIGINT', handleProcessSigint)
     }
 
-    let callbackifyInitiate = callbackify(initiation.initiate.bind(initiation))
-    let callbackifyCopyFile = callbackify(initiation.copy.bind(initiation))
-    let callbackifyTransform = callbackify(compiler.transform.bind(compiler))
+    let asyncifyInitiate = asyncify(initiation.initiate.bind(initiation))
+    let asyncifyTransform = asyncify(compiler.transform.bind(compiler))
 
     let beforeTasks = []
     let tasks = []
@@ -137,26 +141,23 @@ export class CompileTask {
     plugins.forEach((plugin) => {
       if (typeof plugin.beforeInitiate === 'function') {
         let fn = plugin.beforeInitiate.bind(plugin, assets, optionManager, printer)
-        let callbackifyBeforeInitiate = callbackify(fn)
-        beforeTasks.push(callbackifyBeforeInitiate)
+        beforeTasks.push(asyncify(fn))
       }
 
       if (typeof plugin.initiate === 'function') {
         let fn = plugin.initiate.bind(plugin, assets, optionManager, printer)
-        let callbackifyInitiate = callbackify(fn)
-        tasks.push(callbackifyInitiate)
+        tasks.push(asyncify(fn))
       }
 
       if (typeof plugin.async === 'function') {
         let fn = plugin.async.bind(plugin, assets, optionManager, printer)
-        let callbackifyAsync = callbackify(fn)
-        asyncTasks.push(callbackifyAsync)
+        asyncTasks.push(asyncify(fn))
       }
     })
 
     tasks = tasks.concat([
-      callbackifyInitiate.bind(null, compileOptions),
-      callbackifyTransform.bind(null, compileOptions)
+      asyncifyInitiate.bind(null, compileOptions),
+      asyncifyTransform.bind(null, compileOptions)
     ])
 
     parallel(asyncTasks, (error) => {
