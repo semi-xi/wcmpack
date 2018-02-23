@@ -14,7 +14,7 @@ import Printer from '../printer'
 import Package from '../../package.json'
 
 export class CompileTask {
-  constructor (options) {
+  constructor (options = {}) {
     let configFile = options.config ? options.config : '../constants/development.config'
     let compileOptions = require(configFile)
     compileOptions = compileOptions.default || compileOptions

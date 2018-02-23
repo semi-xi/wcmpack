@@ -21,7 +21,7 @@ export default class SpriteSmithPlugin {
     let options = optionManager.connect(this.options)
 
     let {
-      srcDir, tmplDir, staticDir, pubPath,
+      execDir, srcDir, tmplDir, staticDir, pubPath,
       template, imageFile, styleFile, directory
     } = options
 
@@ -29,7 +29,11 @@ export default class SpriteSmithPlugin {
     template = path.join(directory, template)
 
     if (!(template && fs.existsSync(template))) {
-      return Promise.reject(new Error(`Template ${template} is not found or not be provied`))
+      template = path.join(execDir, 'sources/sprite.scss.template.handlebars')
+
+      if (!fs.existsSync(template)) {
+        return Promise.reject(new Error(`Template ${template} is not found or not be provied`))
+      }
     }
 
     let source = fs.readFileSync(template, 'utf8')
