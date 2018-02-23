@@ -3,6 +3,11 @@
 简易的编译工具, 建议刚接触的开发人员可以使用, 没有额外的学习成本, 使用小程序官方最简单的开发方式/流程
 
 
+## Demos
+
+- [Default Template](https://github.com/DavidKk/wcmpack/tree/master/sources/templates/default)
+
+
 ## Features
 
 - 支持 分离脚本样式等文件 与 静态资源等媒体文件
