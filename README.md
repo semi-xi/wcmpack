@@ -72,7 +72,6 @@ wcmpack --help
 ```
 /src
   /sprites
-    /sprite.scss.template.handlebars
   /... others directories
   /app.js
   /app.json
