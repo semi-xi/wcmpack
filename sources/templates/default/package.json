@@ -1,0 +1,14 @@
+{
+  "name": "wechat-mini-program",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "develop": "wcmpack development --watch",
+    "product": "wcmpack production",
+    "start": "npm run develop"
+  },
+  "devDependencies": {
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-stage-0": "^6.24.1"
+  }
+}

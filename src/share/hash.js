@@ -3,7 +3,7 @@ import crypto from 'crypto'
 
 export const gen = function (source, secret = 'wcmpack') {
   return crypto
-    .createHash('sha256')
+    .createHash('md5')
     .update(source)
     .digest('hex')
 }
