@@ -6,3 +6,5 @@
 ☐ 可以配置 Project Template 部分字段
 ☐ 创建 redux 实例
 ☐ 添加单元测试任务
+☐ 添加自身单元测试
+☐ 添加进 travis 中打包发布
