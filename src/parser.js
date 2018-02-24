@@ -19,6 +19,9 @@ export default class Parser {
     }
 
     let { chunk } = assets.add(file, Object.assign({ rule }, options))
+    if (!rule.loaders || rule.loaders.length === 0) {
+      return Promise.resolve([chunk])
+    }
 
     return new Promise((resolve, reject) => {
       options = this.options.connect(options)

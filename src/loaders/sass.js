@@ -1,4 +1,4 @@
-import { renderSync } from 'node-sass'
+import { render } from 'node-sass'
 import { Transformer } from './transformer'
 
 const defaultSettings = {
@@ -15,9 +15,17 @@ export class SassTransformer extends Transformer {
 
     options = Object.assign({}, defaultSettings, options, data)
 
-    let { css: code } = renderSync(options)
-    this.push(code)
-    done()
+    render(options, (error, source) => {
+      if (error) {
+        this.emit('error', error)
+        done()
+        return
+      }
+
+      let { css: code } = source
+      this.push(code)
+      done()
+    })
   }
 }
 

@@ -66,9 +66,15 @@ export default class Chunk {
 
       options = this.globalOptions.connect(options)
       transform = transform.default || transform
-      this.stream.on('end', resolve.bind(null, this))
-      this.stream.on('error', reject.bind(null, this))
+      this.stream.on('error', reject.bind(null))
       this.stream = transform(this.stream, options, this.file, ...args)
+      this.stream.on('finish', resolve.bind(null, this))
+      this.stream.on('error', (error) => {
+        let name = path.basename(use).replace(path.extname(use), '')
+        name = name.substr(0, 1).toUpperCase() + name.substr(1)
+        error.title = `[Loader ${name}] Some error occur in \`${this.file}\``
+        reject(error)
+      })
     })
   }
 
