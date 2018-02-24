@@ -81,7 +81,7 @@ export class CompileTask {
 
           initiation
             .copy([path], compileOptions)
-            .then(handleCallbackTransform.bind(null))
+            .then(handleCallbackTransform.bind(null, null))
             .catch(handleCallbackTransform)
 
           return
