@@ -48,6 +48,7 @@ export class CompileTask {
     let handleCallbackTransform = (error, chunks) => {
       if (error) {
         this.caughtException(error)
+        this.running = false
         return
       }
 
@@ -164,6 +165,8 @@ export class CompileTask {
       if (error) {
         this.caughtException(error)
       }
+
+      printer.push('Async tasks have beend completed.')
     })
 
     isWatchFiles && handleWatchFiles()
@@ -172,13 +175,20 @@ export class CompileTask {
       series(tasks, handleCallbackTransform)
     }
 
-    series(beforeTasks, (error) => error ? this.caughtException(error) : handleTransform())
+    series(beforeTasks, (error) => {
+      if (error) {
+        this.caughtException(error)
+        this.running = false
+      } else {
+        handleTransform()
+      }
+    })
   }
 
   caughtException (error) {
     let { printer } = this
-    printer.push(colors.red.bold(error.message))
-    error.stack && printer.push(error.stack)
+    error.title && printer.push(colors.red.bold(error.title))
+    error.stack && printer.push(colors.red.bold(error.stack))
     printer.flush()
   }
 

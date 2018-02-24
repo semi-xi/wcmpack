@@ -21,8 +21,12 @@ export class BabelTransformer extends Transformer {
   }
 
   _flush (done) {
-    let { code } = transformBabel(this._source, this._babelOptions)
-    this.push(code)
+    try {
+      let { code } = transformBabel(this._source, this._babelOptions)
+      this.push(code)
+    } catch (error) {
+      this.emit('error', error)
+    }
 
     done()
   }

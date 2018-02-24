@@ -35,6 +35,7 @@
   - 生产环境注意更改 `publicPath` 值 ([具体参考见](https://github.com/DavidKk/wcmpack/tree/master/src/optionManager.js))
 - 支持 压缩文件 (自带, 默认仅在生产环境使用)
 - 支持 精灵图插件 (自带, [详情使用见](https://github.com/DavidKk/wcmpack/tree/master/src/plugins/spritesmith.js))
+  - 图片是缩小 50% (默认), 若要修改可以修改样式模板, 所以请导出图片的时候放大 1倍
   - 样式使用百分比, 自带自适应 (默认)
   - 自定义样式配置可在 `root/src/sprites/sprite.scss.template.handlebars` 创建 (自定义修改配置自己分配, 暂时只支持 handlebars 模板)
   - 注意精灵图样式并不会自动导入, 在全局样式中必须导入 `@import "../.temporary/sprites/sprite";`
@@ -78,3 +79,20 @@ wcmpack --help
   - 只配置 test: /\.wxs$/ 不配置任何 loader
 - 注意 WXS 文件并不能导入任何 node_modules 中的东西所以不要编译这类文件
 - 注意 Component 不读取公共样式; 因此精灵图样式, 全局样式等可能需要各自导入各自自定义组件中 (并不建议)
+
+## Others
+
+精灵图样式必须自行执行, 以下是例子:
+
+```
+@import "../.temporary/sprites/sprite";
+
+@if mixin-exists(sprites) and global-variable-exists('spritesheet-sprites') {
+  .sp {
+    display: inline-block;
+    transition: all .35s ease-in-out;
+  }
+
+  @include sprites($spritesheet-sprites);
+}
+```
