@@ -6,7 +6,7 @@ import { genFileSync } from '../share/hash'
 import { Transformer } from './transformer'
 
 const escapeRegExp = function (source) {
-  return source.replace(/[-[]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, '\\$&')
+  return source.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&')
 }
 
 const WXMLImageRegExp = /<image[^>]+.*?src=["']?([^"'\s]+)["']?.*?\s*(\/>|><\/image>)/ig
