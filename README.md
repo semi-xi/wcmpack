@@ -21,7 +21,7 @@
   - 依赖并不 cache 任何依赖情况, 所以编译会比较慢
   - 这里注意小程序并不支持 require 相互引入, 且必然会导致无限循环
     - 在 babel 某些库会出现相互引用方法, 这里注意检查
-  - 暂不支持 相互引入导致无限循环提示
+  - 支持 相互引入导致无限循环提示
 - 支持 替换式变量 (自带, 类似 Webpack.DefinePlugin, [配置参考见](https://github.com/DavidKk/wcmpack/tree/master/src/constants/common.config.js))
 - 支持 SASS (自带, 默认使用 SCSS)
   - 支持背景图片导入 (详细看下面文件依赖导入)

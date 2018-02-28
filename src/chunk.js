@@ -1,5 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
+import capitalize from 'lodash/capitalize'
 import { PassThrough } from 'stream'
 import OptionManager from './optionManager'
 
@@ -71,8 +72,7 @@ export default class Chunk {
       this.stream.on('finish', resolve.bind(null, this))
       this.stream.on('error', (error) => {
         let name = path.basename(use).replace(path.extname(use), '')
-        name = name.substr(0, 1).toUpperCase() + name.substr(1)
-        error.title = `[Loader ${name}] Some error occur in \`${this.file}\``
+        error.title = `[Loader ${capitalize(name)}] Some error occur in \`${this.file}\``
         reject(error)
       })
     })
@@ -125,7 +125,7 @@ export default class Chunk {
 
   destory () {
     if (this.stream && !this.stream._readableState.ended) {
-      this.stream.close()
+      this.stream.close && this.stream.close()
     }
 
     this.file = undefined

@@ -2,6 +2,7 @@ import fs from 'fs-extra'
 import path from 'path'
 import colors from 'colors'
 import program from 'commander'
+import capitalize from 'lodash/capitalize'
 import OptionManager from '../optionManager'
 import Printer from '../printer'
 import { find } from '../share/finder'
@@ -110,7 +111,7 @@ class GeneratorTask {
     })
 
     printer.push('')
-    printer.push(`Wcapack Version at ${colors.cyan.bold(Package.version)}`)
+    printer.push(`${capitalize(Package.name)} Version at ${colors.cyan.bold(Package.version)}`)
     printer.push(`Time: ${colors.bold(colors.white(stats.spendTime))}ms\n`)
     printer.push(printer.formatStats(statsFormatter))
     printer.push('')
