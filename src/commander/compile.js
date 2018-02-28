@@ -3,6 +3,7 @@ import program from 'commander'
 import chokidar from 'chokidar'
 import map from 'lodash/map'
 import flatten from 'lodash/flatten'
+import capitalize from 'lodash/capitalize'
 import parallel from 'async/parallel'
 import series from 'async/series'
 import asyncify from 'async/asyncify'
@@ -209,7 +210,7 @@ export class CompileTask {
     let printer = this.printer
 
     printer.push('')
-    printer.push(`Wcapack Version at ${colors.cyan.bold(Package.version)}`)
+    printer.push(`${capitalize(Package.name)} Version at ${colors.cyan.bold(Package.version)}`)
     printer.push(`Time: ${colors.bold(colors.white(stats.spendTime))}ms\n`)
     printer.push(printer.formatStats(statsFormatter))
     printer.push('')

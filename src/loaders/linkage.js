@@ -22,6 +22,11 @@ export class LinkageTransformer extends Transformer {
       let directory = path.dirname(destination)
 
       forEach(dependencies, ({ dependency, destination: file, required }) => {
+        let extname = path.extname(file)
+        if (extname !== '' && !/\.(jsx?|babel)/.test(extname)) {
+          return
+        }
+
         let relativePath = path.relative(directory, file)
         if (relativePath.charAt(0) !== '.') {
           relativePath = `./${relativePath}`

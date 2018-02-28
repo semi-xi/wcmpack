@@ -49,7 +49,7 @@ export default class Printer {
    * @param {number} decimals decimal size
    */
   formatBytes (bytes, decimals) {
-    /* eslint eqeqeq: off */
+    // eslint-disable-next-line eqeqeq
     if (bytes == 0) {
       return '0 Bytes'
     }

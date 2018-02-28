@@ -7,34 +7,67 @@ import { Transformer } from './transformer'
 
 const WXMLImageRegExp = /<image[^>]+.*?src=["']?([^"'\s]+)["']?.*?\s*(\/>|><\/image>)/ig
 const WXSSImageRegExp = /url\(["']?([^"'\s]+)["']?\)/ig
+const RequireRegExp = /require\(["']?([^"'\s]+)["']?\)/ig
+
 const FileMatchRegExps = {
   '.html': WXMLImageRegExp,
-  '.css': WXSSImageRegExp,
   '.wxml': WXMLImageRegExp,
   '.wxss': WXSSImageRegExp,
-  '.scss': WXSSImageRegExp
+  '.css': WXSSImageRegExp,
+  '.scss': WXSSImageRegExp,
+  '.js': RequireRegExp,
+  '.wxs': {
+    regexp: RequireRegExp,
+    replace (source, string, url) {
+      return source.replace(string, `'${url}'`)
+    }
+  }
 }
 
 export class FileTransformer extends Transformer {
+  constructor (options, file, assets, dependencies, parser) {
+    super(options, file, assets, dependencies, parser)
+    this.FileMatchRegExps = Object.assign({}, this._options.rules, FileMatchRegExps)
+  }
+
   _flush (done) {
     try {
       let { _assets: assets, _file: file, _dependencies: dependencies, _parser: parser } = this
       let { rootDir, srcDir, staticDir, pubPath } = this._options
       let directory = path.dirname(file)
       let extname = path.extname(file)
-      let source = this._source
-      let code = this._source
-      let files = []
+      let { FileMatchRegExps, _source: source, _source: code } = this
       let regexp = FileMatchRegExps[extname]
+      let files = []
 
-      while (true) {
+      if (!regexp) {
+        this.push(source)
+        done()
+        return
+      }
+
+      let replacement = function (source, string, url, regexp) {
+        return source.replace(new RegExp(string, 'g'), () => {
+          return string.replace(regexp, (string, file) => {
+            return string.replace(file, url)
+          })
+        })
+      }
+
+      if (!(regexp instanceof RegExp)) {
+        replacement = regexp.replace
+        regexp = regexp.regexp
+      }
+
+      // eslint-disable-next-line no-unmodified-loop-condition
+      while (regexp instanceof RegExp) {
         let match = regexp.exec(code)
         if (!match) {
           break
         }
 
         let [string, relativePath] = match
-        code = code.replace(string, '')
+        code = code.replace(new RegExp(string, 'g'), '')
 
         if (/^data:([\w/]+?);base64,/.test(relativePath)) {
           continue
@@ -45,6 +78,11 @@ export class FileTransformer extends Transformer {
         }
 
         let filename = path.basename(relativePath)
+        let extname = path.extname(filename)
+        if (!extname || FileMatchRegExps.hasOwnProperty(extname)) {
+          continue
+        }
+
         let file = ''
         switch (relativePath.charAt(0)) {
           case '~':
@@ -60,7 +98,6 @@ export class FileTransformer extends Transformer {
             continue
         }
 
-        let extname = path.extname(filename)
         let basename = path.basename(filename).replace(extname, '')
         filename = basename + '.' + genFileSync(file) + extname
 
@@ -70,11 +107,7 @@ export class FileTransformer extends Transformer {
         }
 
         let url = trimEnd(pubPath, '/') + '/' + trimStart(destination.replace(staticDir, ''), '/')
-        source = source.replace(string, () => {
-          return string.replace(regexp, (string, file) => {
-            return string.replace(file, url)
-          })
-        })
+        source = replacement(source, string, url, regexp)
       }
 
       files.forEach(({ file, destination }) => {

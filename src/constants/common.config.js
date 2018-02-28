@@ -20,6 +20,10 @@ export let JSRule = {
     {
       use: require.resolve('../loaders/linkage'),
       options: {}
+    },
+    {
+      use: require.resolve('../loaders/file'),
+      options: {}
     }
   ]
 }
@@ -50,7 +54,13 @@ export let HTMLRule = {
 }
 
 export let WXSRule = {
-  test: /\.wxs$/
+  test: /\.wxs$/,
+  loaders: [
+    {
+      use: require.resolve('../loaders/file'),
+      options: {}
+    }
+  ]
 }
 
 export let Rules = [JSRule, CSSRule, HTMLRule, WXSRule]
