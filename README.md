@@ -29,9 +29,11 @@
   - 支持 alias { ~: srcDir, /: rootDir, .: relativeDir }
     - 建议使用相对地址, 使用 VSCode 等可以快捷查看文件状态或预览文件
   - 支持 追加文件 Hash 码 `file.[hash].png` (默认, 没法自定义, 存在所有环境中)
-  - 支持 WXML `<image src="../../panels/logo.png" />`
-  - 支持 SCSS `background-image: url("../../panels/logo.png")`
-  - 暂时不支持 JS `require('../../panels/logo.png')`
+  - 支持 WXML, HTML `<image src="../../panels/logo.png" />`
+  - 支持 WXS, SCSS, CSS `background-image: url("../../panels/logo.png")`
+  - 支持 JS `require('../../panels/logo.png')`
+  - 支持 WXSS `require('../../panels/logo.png')`
+  - 可自定义规则 (具体参考下方)
   - 生产环境注意更改 `publicPath` 值 ([具体参考见](https://github.com/DavidKk/wcmpack/tree/master/src/optionManager.js))
 - 支持 压缩文件 (自带, 默认仅在生产环境使用)
 - 支持 精灵图插件 (自带, [详情使用见](https://github.com/DavidKk/wcmpack/tree/master/src/plugins/spritesmith.js))
@@ -82,7 +84,7 @@ wcmpack --help
 
 ## Others
 
-精灵图样式必须自行执行, 以下是例子:
+### 精灵图样式必须自行执行, 以下是例子:
 
 ```
 @import "../.temporary/sprites/sprite";
@@ -94,5 +96,37 @@ wcmpack --help
   }
 
   @include sprites($spritesheet-sprites);
+}
+```
+
+### 静态文件引入规则自定义, 可配置
+
+[默认配置参考](https://github.com/DavidKk/wcmpack/blob/master/src/loaders/file.js#L16)
+
+```
+export default {
+  rules: {
+    test: /\.custom$/,
+    loaders: [
+      {
+        use: require.resolve('../loaders/file'),
+        options: {
+          rules: {
+            // from `import "a.png"` to `import 'http://192.168.1.1/../a.png'`
+            '.custom': /import ["']?([^"'\s]+)["']?;/g
+            // from `include("aa.png")` to `'http://192.168.1.1/../a.png'`
+            '.extname': {
+              regexp: /include\(["']?([^"'\s]+)["']?\)/g,
+              replace (source, string, url) {
+                let escapeRegExp = toEscapeRegExp(string)
+                let regexp = new RegExp(escapeRegExp, 'g')
+                return source.replace(regexp, `'${url}'`)
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
 }
 ```
