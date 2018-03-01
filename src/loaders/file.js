@@ -5,6 +5,10 @@ import findIndex from 'lodash/findIndex'
 import { genFileSync } from '../share/hash'
 import { Transformer } from './transformer'
 
+const escapeRegExp = function (source) {
+  return source.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&')
+}
+
 const WXMLImageRegExp = /<image[^>]+.*?src=["']?([^"'\s]+)["']?.*?\s*(\/>|><\/image>)/ig
 const WXSSImageRegExp = /url\(["']?([^"'\s]+)["']?\)/ig
 const RequireRegExp = /require\(["']?([^"'\s]+)["']?\)/ig
@@ -19,7 +23,7 @@ const FileMatchRegExps = {
   '.wxs': {
     regexp: RequireRegExp,
     replace (source, string, url) {
-      return source.replace(string, `'${url}'`)
+      return source.replace(new RegExp(escapeRegExp(string), 'g'), `'${url}'`)
     }
   }
 }
@@ -32,11 +36,16 @@ export class FileTransformer extends Transformer {
 
   _flush (done) {
     try {
-      let { _assets: assets, _file: file, _dependencies: dependencies, _parser: parser } = this
+      let {
+        _assets: assets, _file: file, _dependencies: dependencies,
+        _source: source, _source: code,
+        _parser: parser,
+        FileMatchRegExps
+      } = this
+
       let { rootDir, srcDir, staticDir, pubPath } = this._options
       let directory = path.dirname(file)
       let extname = path.extname(file)
-      let { FileMatchRegExps, _source: source, _source: code } = this
       let regexp = FileMatchRegExps[extname]
       let files = []
 
@@ -47,11 +56,13 @@ export class FileTransformer extends Transformer {
       }
 
       let replacement = function (source, string, url, regexp) {
-        return source.replace(new RegExp(string, 'g'), () => {
+        source = source.replace(new RegExp(escapeRegExp(string), 'g'), () => {
           return string.replace(regexp, (string, file) => {
             return string.replace(file, url)
           })
         })
+
+        return source
       }
 
       if (!(regexp instanceof RegExp)) {
@@ -67,7 +78,7 @@ export class FileTransformer extends Transformer {
         }
 
         let [string, relativePath] = match
-        code = code.replace(new RegExp(string, 'g'), '')
+        code = code.replace(new RegExp(escapeRegExp(string), 'g'), '')
 
         if (/^data:([\w/]+?);base64,/.test(relativePath)) {
           continue
