@@ -15,7 +15,7 @@ export default class StaticServer {
     let { staticDir, pubPath, port } = options
 
     let serve = ServeStatic(staticDir)
-    var server = http.createServer((request, response) => {
+    let server = http.createServer((request, response) => {
       serve(request, response, Finalhandler(request, response))
     })
 
