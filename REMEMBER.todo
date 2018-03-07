@@ -4,7 +4,6 @@
 ✔ 整合 assets chunk @done (2018-2-13 14:09:39)
 ✔ 重命名哈希值 @done (2018-2-22 09:40:41)
 
-☐ 添加 CSS px 自动转 rpx
 ☐ 将 Template 迁移至外网
 ☐ 可以配置 Project Template 部分字段
 ☐ 创建 redux 实例
