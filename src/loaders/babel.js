@@ -23,6 +23,17 @@ export class BabelTransformer extends Transformer {
   _flush (done) {
     try {
       let { code } = transformBabel(this._source, this._babelOptions)
+      let regexp = /require\(["'\s]+(.+?)["'\s]+\)/g
+      let surplus = code
+      let match = null
+
+      // eslint-disable-next-line no-cond-assign
+      while (match = regexp.exec(surplus)) {
+        let [all, path] = match
+        surplus = surplus.replace(all, '')
+        code = code.replace(all, `require('${path.replace(/\\/g, '/')}')`)
+      }
+
       this.push(code)
     } catch (error) {
       this.emit('error', error)
