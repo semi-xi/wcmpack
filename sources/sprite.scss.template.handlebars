@@ -6,6 +6,19 @@
   'variableNameTransforms': ['dasherize']
 }
 
+/**
+ * Remove the unit of a length
+ * @param {Number} $number - Number to remove unit from
+ * @return {Number} - Unitless number
+ */
+@function strip-unit($number) {
+  @if type-of($number) == 'number' and not unitless($number) {
+    @return $number / ($number * 0 + 1);
+  }
+
+  @return $number;
+}
+
 {{#block "sprites-comment"}}
 {{/block}}
 
@@ -105,8 +118,8 @@
 
         .sp.sp-#{$sprite-name} {
           display: inline-block;
-          width: nth($sprite, 5) / 2;
-          height: nth($sprite, 6) / 2;
+          width: nth($sprite, 5) / 2 + rpx;
+          height: nth($sprite, 6) / 2 + rpx;
 
           &:before {
             content: "";

@@ -65,7 +65,14 @@ export default class SpriteSmithPlugin {
         let basename = filename.replace(extname, '')
         imageFile = path.join(imageFile.replace(filename, ''), basename + '.' + gen(buffer) + extname)
 
+        /**
+         * windows 是使用反斜杠, 路径与 URL 路径不相同
+         * 且反斜杠容易造成转义情况, 例如 \s, 因此这里
+         * 需要做一下处理
+         */
         let image = trimEnd(pubPath, '/') + '/' + trimStart(imageFile, '/')
+        image = image.replace(/\\/g, '/')
+
         let spritesheet = Object.assign({ image }, properties)
         let source = SpritesmithTemplate({ sprites, spritesheet }, { format: 'spriteScssTemplate' })
 
