@@ -27,6 +27,10 @@ export class LinkageTransformer extends Transformer {
           return
         }
 
+        if (dependency === path.basename(dependency)) {
+          return
+        }
+
         let relativePath = path.relative(directory, file)
         if (relativePath.charAt(0) !== '.') {
           relativePath = `./${relativePath}`

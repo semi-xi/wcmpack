@@ -19,7 +19,7 @@ npm-debug.log
 
 # NPM
 npm-shrinkwrap.json
-
+package-lock.json
 
 # YARN
 yarn.lock
