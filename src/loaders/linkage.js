@@ -37,7 +37,7 @@ export class LinkageTransformer extends Transformer {
         }
 
         relativePath = relativePath.replace('node_modules', options.npmDir)
-        source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '')}')`)
+        source = source.replace(new RegExp(`require\\(['"]${required}['"]\\)`, 'gm'), `require('${relativePath.replace(/\.\w+$/, '').replace(/\\/g, '/')}')`)
 
         let rulesToFile = findForMatchRules(dependency, options.rules)
         forEach(rulesToFile, (rules, file) => {

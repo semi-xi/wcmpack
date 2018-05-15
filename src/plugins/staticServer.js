@@ -1,6 +1,6 @@
 import http from 'http'
 import colors from 'colors'
-import localip from 'local-ip'
+import ip from 'ip'
 import Finalhandler from 'finalhandler'
 import ServeStatic from 'serve-static'
 
@@ -21,7 +21,7 @@ export default class StaticServer {
 
     server.listen(port, '0.0.0.0')
 
-    printer.layze(`Static server is running at ${colors.cyan.bold(`${localip()}:${port}`)}`)
+    printer.layze(`Static server is running at ${colors.cyan.bold(`${ip.address()}:${port}`)}`)
     printer.layze(`Static output is served from ${colors.cyan.bold(pubPath)}`)
     printer.layze('')
 
