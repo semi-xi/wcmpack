@@ -4,7 +4,15 @@ import { resolve as relativeResolve } from './requireRelative'
 
 export const resolveDestination = function (file, options) {
   let { rootDir, srcDir, outDir } = options
-  return new RegExp(srcDir).test(file) ? file.replace(srcDir, outDir) : file.replace(rootDir, outDir)
+
+  /**
+   * windows 下 path 存在多个反斜杠
+   * 因此需要 escape 才能进行 search
+   * 这里可以直接使用 indexOf 进行查询
+   */
+  return file.indexOf(srcDir) !== -1
+    ? file.replace(srcDir, outDir)
+    : file.replace(rootDir, outDir)
 }
 
 export const resolveDependencies = function (code, file, relativeTo, options) {

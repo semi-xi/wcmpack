@@ -44,7 +44,12 @@ export default class Chunk {
         this.destination = destination
       }
     } else {
-      let relativePath = file.search(srcDir) !== -1
+      /**
+       * windows 下 path 存在多个反斜杠
+       * 因此需要 escape 才能进行 search
+       * 这里可以直接使用 indexOf 进行查询
+       */
+      let relativePath = file.indexOf(srcDir) !== -1
         ? path.dirname(file).replace(srcDir, '')
         : /[\\/]node_modules[\\/]/.test(file)
           ? path.dirname(file).replace(path.join(rootDir, 'node_modules'), npmDir)
